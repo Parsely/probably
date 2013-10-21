@@ -1,0 +1,4 @@
+numpy
+scikit-learn
+#-e git+https://github.com/tbaugis/python-smhasher.git#egg=python-smhasher
+
