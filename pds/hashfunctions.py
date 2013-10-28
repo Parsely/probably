@@ -19,4 +19,5 @@ def generate_hashfunctions(nbr_bits, nbr_slices):
         return rval
     return _make_hashfuncs
 
-
+def get_raw_hashfunctions():
+    return utils.murmurhash3_32
