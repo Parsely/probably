@@ -1,8 +1,6 @@
-import math
 import hashlib
 import numpy as np
 
-from math import floor
 from maintenance import maintenance
 from hashfunctions import generate_hashfunctions
 
@@ -19,11 +17,11 @@ class CountdownBloomFilter(object):
         self.error_rate = error_rate
         self.capacity = capacity
         self.expiration = expiration
-        self.nbr_slices = int(math.ceil(math.log(1.0 / error_rate, 2)))
-        self.bits_per_slice = int(math.ceil((capacity * abs(math.log(error_rate))) / (self.nbr_slices * (math.log(2) ** 2))))
+        self.nbr_slices = int(np.ceil(np.log2(1.0 / error_rate)))
+        self.bits_per_slice = int(np.ceil((capacity * abs(np.log(error_rate))) / (self.nbr_slices * (np.log(2) ** 2))))
         self.nbr_bits = self.nbr_slices * self.bits_per_slice
         self.count = 0
-        self.cellarray = np.zeros(self.nbr_bits).astype(np.uint8)
+        self.cellarray = np.zeros(self.nbr_bits, dtype=np.uint8)
         self.counter_init = 255
         self.refresh_head = 0
         self.make_hashes = generate_hashfunctions(self.bits_per_slice, self.nbr_slices)
@@ -44,8 +42,7 @@ class CountdownBloomFilter(object):
         if self.estimate_z == 0:
             self.estimate_z = (1.0 / self.nbr_bits)
         self.estimate_z = min(self.estimate_z, 0.999999)
-        #self.count = int(self.nbr_bits * (math.log(self.estimate_z) * math.log(1-self.estimate_z)) / (- math.log(self.error_rate)))
-        self.count = int(-(self.nbr_bits / self.nbr_slices) * math.log(1 - self.estimate_z))
+        self.count = int(-(self.nbr_bits / self.nbr_slices) * np.log(1 - self.estimate_z))
 
     def expiration_maintenance(self):
         """ Decrement cell value if not zero
@@ -81,7 +78,7 @@ class CountdownBloomFilter(object):
         return s
 
     def num_batched_maintenance(self, elapsed_time):
-        return int(floor(elapsed_time / self.compute_refresh_time()))
+        return int(np.floor(elapsed_time / self.compute_refresh_time()))
 
     def __contains__(self, key):
         if not isinstance(key, list):

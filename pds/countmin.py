@@ -2,8 +2,6 @@ import sys
 import random
 import numpy as np
 import heapq
-import math
-import hashlib
 
 from hashfunctions import generate_hashfunctions
 
@@ -15,7 +13,7 @@ class CountMinSketch(object):
         self.nbr_bits = int(np.ceil(np.exp(1) / epsilon))
         self.nbr_slices = int(np.ceil(np.log(1 / delta)))
         self.k = k
-        self.count = np.zeros((self.nbr_slices, self.nbr_bits)).astype(np.int32)
+        self.count = np.zeros((self.nbr_slices, self.nbr_bits), dtype=np.int32)
         self.heap = []
         self.top_k = {}
         self.make_hashes = generate_hashfunctions(self.nbr_bits, self.nbr_slices)
