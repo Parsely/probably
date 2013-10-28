@@ -29,7 +29,7 @@ class HyperLogLog(object):
             return 0.709
         return 0.7213 / (1.0 + 1.079 / (1 << b))
 
-    def _get_rho(w, arr):
+    def _get_rho(self, w, arr):
         """ Return the least signifiant bit
             O(N) in the worst case
         """
@@ -77,6 +77,6 @@ class HyperLogLog(object):
 
 if __name__ == "__main__":
     hll = HyperLogLog(0.01)
-    for i in range(1000):
+    for i in range(100000):
         hll.add(str(i))
     print len(hll)
