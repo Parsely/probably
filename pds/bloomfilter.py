@@ -42,7 +42,6 @@ if __name__ == "__main__":
     import numpy as np
 
     bf = BloomFilter(10000, 0.01)
-    real_set = set()
 
     random_items = [str(r) for r in np.random.randn(20000)]
     for item in random_items[:10000]:
