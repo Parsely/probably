@@ -1,4 +1,5 @@
-from sklearn import utils
+#from sklearn import utils
+import smhasher
 
 def generate_hashfunctions(nbr_bits, nbr_slices):
     """ Generate a set of hash functions
@@ -14,7 +15,8 @@ def generate_hashfunctions(nbr_bits, nbr_slices):
         current_hash = None
         for i in range(nbr_slices):
             seed = current_hash or 0
-            current_hash = utils.murmurhash3_32(key, seed, True)
+            #current_hash = utils.murmurhash3_32(key, seed, True)
+            current_hash = smhasher.murmur3_x86_64(key, seed)
             rval.append(current_hash % nbr_bits)
         return rval
     return _make_hashfuncs

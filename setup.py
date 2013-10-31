@@ -38,7 +38,6 @@ setup(
     license="MIT License",
     packages=find_packages(exclude=['ez_setup']),
     platforms=['any'],
-    test_suite="pybloom.tests",
     zip_safe=False,
     install_requires=['numpy', 'scikit-learn', 'cython'],
     ext_modules = [Extension("maintenance", ["pds/maintenance.c"], include_dirs=[numpy.get_include()])],
