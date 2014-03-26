@@ -25,16 +25,17 @@ class DailyTemporalBloomFilter(BloomFilter):
         self.name = name
         self.snapshot_path = snapshot_path
         self.expiration = expiration
-        self.date = self.current_period.strftime("%Y-%m-%d")
 
     def initialize_period(self):
         self.current_period = dt.datetime.now()
         self.current_period = dt.datetime(self.current_period.year, self.current_period.month, self.current_period.day)
+        self.date = self.current_period.strftime("%Y-%m-%d")
 
     def maintenance(self):
         """Expire the old element of the set.
 
-        Initialize a new bitarray and load the previous snapshot.
+        Initialize a new bitarray and load the previous snapshot. Execute this guy
+        at the beginining of each day.
         """
         self.initialize_period()
         self.initialize_bitarray()
@@ -53,7 +54,8 @@ class DailyTemporalBloomFilter(BloomFilter):
                 snapshot = np.load(filename)
                 # Unioning the BloomFilters by doing a bitwize OR
                 self.bitarray = np.bitwise_or(self.bitarray, snapshot['bitarray'])
-            if snapshot_period < last_period:
+
+            if snapshot_period < last_period and clean_old_snapshot:
                 os.remove(filename)
 
     def save_snaphot(self):
