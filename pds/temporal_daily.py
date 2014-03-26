@@ -25,6 +25,7 @@ class DailyTemporalBloomFilter(BloomFilter):
         self.name = name
         self.snapshot_path = snapshot_path
         self.expiration = expiration
+        self.initialize_period()
 
     def initialize_period(self):
         self.current_period = dt.datetime.now()
