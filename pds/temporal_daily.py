@@ -12,14 +12,12 @@ class DailyTemporalBloomFilter(BloomFilter):
 
     For really high value of expiration (like 60 days) with low requirement on precision.
     The actual error of this BF will the be native error of the BF + the error related
-    to the coarse aspect of the expiration, since no longer expires information precisely.
-    Also, as opposed to a classic Bloom Filter, this one will have false positive (reporting membership for a non-member)
+    to the coarse aspect of the expiration, since we no longer expires information precisely.
+    Also, as opposed to a classic Bloom Filter, this one will aslo have false positive (reporting membership for a non-member)
     AND false negative (reporting non-membership for a member).
 
-    For example, a BF with 2% error and an expiration
-    value of 60 days, the actual value of the error will be 2% + temporal_error, where
-    the upper bound of the temporal_error can be theoricaly quite high. However, if the
-    item of the set are uniformly distributed over time, the avg error will be something like 1.0 / expiration
+    The upper bound of the temporal_error can be theoricaly quite high. However, if the
+    items of the set are uniformly distributed over time, the avg error will be something like 1.0 / expiration
     """
 
     def __init__(self, capacity, error_rate, expiration, name, snapshot_path):
@@ -47,7 +45,6 @@ class DailyTemporalBloomFilter(BloomFilter):
         base_filename = "%s/%s_%s_*.npz" % (self.snapshot_path, self.name, self.expiration)
         availables_snapshots = glob.glob(base_filename)
         for filename in availables_snapshots:
-            print filename
             snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.npz'), "%Y-%m-%d")
             last_period = self.current_period - dt.timedelta(days=self.expiration-1)
             if snapshot_period <  last_period and not clean_old_snapshot:
