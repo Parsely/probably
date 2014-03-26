@@ -59,15 +59,17 @@ class DailyTemporalBloomFilter(BloomFilter):
             if snapshot_period < last_period and clean_old_snapshot:
                 os.remove(filename)
 
-    def save_snaphot(self):
+    def save_snaphot(self, compressed=True):
         """Save the current state of the snapshot on disk.
 
         Save the internal representation (numpy array) into a npz file using this format:
             filename : name_expiration_2013-01-01.npz
         """
         filename = "%s/%s_%s_%s" % (self.snapshot_path, self.name, self.expiration, self.date)
-        np.savez(filename, bitarray=self.bitarray)
-
+        if compressed:
+            np.savez_compressed(filename, bitarray=self.bitarray)
+        else:
+            np.savez(filename, bitarray=self.bitarray)
 
 if __name__ == "__main__":
     import numpy as np
