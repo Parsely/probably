@@ -1,3 +1,4 @@
+import bitarray
 import numpy as np
 
 from hashfunctions import generate_hashfunctions
@@ -11,10 +12,13 @@ class BloomFilter(object):
         self.nbr_slices = int(np.ceil(np.log2(1.0 / error_rate)))
         self.bits_per_slice = int(np.ceil((capacity * abs(np.log(error_rate))) / (self.nbr_slices * (np.log(2) ** 2))))
         self.nbr_bits = self.nbr_slices * self.bits_per_slice
-        self.bitarray = np.zeros(self.nbr_bits, dtype=np.bool)
+        self.initialize_bitarray()
         self.count = 0
         self.hashes = generate_hashfunctions(self.bits_per_slice, self.nbr_slices)
         self.hashed_values = []
+
+    def initialize_bitarray(self):
+        self.bitarray = bitarray.bitarray(self.nbr_bits)
 
     def __contains__(self, key):
         self.hashed_values = self.hashes(key)

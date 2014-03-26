@@ -1,7 +1,9 @@
 import os
+import cPickle
 import glob
 import datetime as dt
 import numpy as np
+import zlib
 
 from bloomfilter import BloomFilter
 from hashfunctions import generate_hashfunctions
@@ -44,32 +46,31 @@ class DailyTemporalBloomFilter(BloomFilter):
 
     def restore_from_disk(self, clean_old_snapshot=False):
         """Restore the state of the BF using previous snapshots."""
-        base_filename = "%s/%s_%s_*.npz" % (self.snapshot_path, self.name, self.expiration)
+        base_filename = "%s/%s_%s_*.dat" % (self.snapshot_path, self.name, self.expiration)
         availables_snapshots = glob.glob(base_filename)
         for filename in availables_snapshots:
-            snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.npz'), "%Y-%m-%d")
+            snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.dat'), "%Y-%m-%d")
             last_period = self.current_period - dt.timedelta(days=self.expiration-1)
             if snapshot_period <  last_period and not clean_old_snapshot:
                 continue
             else:
-                snapshot = np.load(filename)
+                snapshot = cPickle.loads(zlib.decompress(open(filename,'r').read()))
                 # Unioning the BloomFilters by doing a bitwize OR
-                self.bitarray = np.bitwise_or(self.bitarray, snapshot['bitarray'])
+                self.bitarray = self.bitarray | snapshot
 
             if snapshot_period < last_period and clean_old_snapshot:
                 os.remove(filename)
 
-    def save_snaphot(self, compressed=True):
+    def save_snaphot(self):
         """Save the current state of the snapshot on disk.
 
-        Save the internal representation (numpy array) into a npz file using this format:
-            filename : name_expiration_2013-01-01.npz
+        Save the internal representation (bitarray) into a binary file using this format:
+            filename : name_expiration_2013-01-01.dat
         """
-        filename = "%s/%s_%s_%s" % (self.snapshot_path, self.name, self.expiration, self.date)
-        if compressed:
-            np.savez_compressed(filename, bitarray=self.bitarray)
-        else:
-            np.savez(filename, bitarray=self.bitarray)
+        filename = "%s/%s_%s_%s.dat" % (self.snapshot_path, self.name, self.expiration, self.date)
+        with open(filename, 'w') as f:
+            f.write(zlib.compress(cPickle.dumps(self.bitarray, protocol=cPickle.HIGHEST_PROTOCOL)))
+
 
 if __name__ == "__main__":
     import numpy as np
