@@ -28,9 +28,20 @@ class DailyTemporalBloomFilter(BloomFilter):
         self.snapshot_path = snapshot_path
         self.expiration = expiration
         self.initialize_period()
+        self.snapshot_to_load = None
+        self.ready = False
+        self.warm_period = None
+        self.last_snapshot_load = dt.datetime.now()
 
-    def initialize_period(self):
-        self.current_period = dt.datetime.now()
+    def initialize_period(self, period=None):
+        """Initialize the period of BF.
+
+        :override: datetime.datetime for setting the period explicity.
+        """
+        if not period:
+            self.current_period = dt.datetime.now()
+        else:
+            self.current_period = period
         self.current_period = dt.datetime(self.current_period.year, self.current_period.month, self.current_period.day)
         self.date = self.current_period.strftime("%Y-%m-%d")
 
@@ -44,22 +55,61 @@ class DailyTemporalBloomFilter(BloomFilter):
         self.initialize_bitarray()
         self.restore_from_disk()
 
+    def compute_refresh_period(self):
+        self.warm_period =  (60 * 60 * 24) // (self.expiration-2)
+
+    def should_warm(self):
+        current_time = dt.datetime.now()
+        time_difference = current_time - self.last_snapshot_load
+        return time_difference.seconds > self.warm_period
+
+    def warm(self):
+        """Progressively load the previous snapshot during the day.
+
+        Loading all the snapshots at once can takes a substantial amount of time. This method, if called
+        periodically during the day will progressively load those snapshots one by one.
+        """
+        if self.snapshot_to_load == None:
+            last_period = self.current_period - dt.timedelta(days=self.expiration-1)
+            self.compute_refresh_period()
+            self.snapshot_to_load = []
+            base_filename = "%s/%s_%s_*.dat" % (self.snapshot_path, self.name, self.expiration)
+            availables_snapshots = glob.glob(base_filename)
+            for filename in availables_snapshots:
+                snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.dat'), "%Y-%m-%d")
+                if snapshot_period >= last_period:
+                    self.snapshot_to_load.append(filename)
+
+        if self.snapshot_to_load and self.should_warm():
+            filename = self.snapshot_to_load.pop()
+            self._union_bf_from_file(filename)
+            self.last_snapshot_load = dt.datetime.now()
+            return
+
+        self.ready = True
+
+    def _union_bf_from_file(self, filename):
+        snapshot = cPickle.loads(zlib.decompress(open(filename,'r').read()))
+        self.bitarray = self.bitarray | snapshot
+
     def restore_from_disk(self, clean_old_snapshot=False):
-        """Restore the state of the BF using previous snapshots."""
+        """Restore the state of the BF using previous snapshots.
+
+        :clean_old_snapshot: Delete the old snapshot on the disk (period < current - expiration)
+        """
         base_filename = "%s/%s_%s_*.dat" % (self.snapshot_path, self.name, self.expiration)
         availables_snapshots = glob.glob(base_filename)
+        last_period = self.current_period - dt.timedelta(days=self.expiration-1)
         for filename in availables_snapshots:
             snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.dat'), "%Y-%m-%d")
-            last_period = self.current_period - dt.timedelta(days=self.expiration-1)
             if snapshot_period <  last_period and not clean_old_snapshot:
                 continue
             else:
-                snapshot = cPickle.loads(zlib.decompress(open(filename,'r').read()))
-                # Unioning the BloomFilters by doing a bitwize OR
-                self.bitarray = self.bitarray | snapshot
+                self._union_bf_from_file(filename)
 
             if snapshot_period < last_period and clean_old_snapshot:
                 os.remove(filename)
+        self.ready = True
 
     def save_snaphot(self):
         """Save the current state of the snapshot on disk.
