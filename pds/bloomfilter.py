@@ -4,7 +4,7 @@ import numpy as np
 from hashfunctions import generate_hashfunctions
 
 class BloomFilter(object):
-    """ Basic Bloom Filter """
+    """Basic Bloom Filter."""
 
     def __init__(self, capacity, error_rate):
         self.error_rate = error_rate
@@ -36,7 +36,7 @@ class BloomFilter(object):
         if not self.hashed_values:
             self.hashed_values = self.hashes(key)
         for value in self.hashed_values:
-            self.bitarray[offset + value] = True
+            self.bitarray[offset + value] = 1
             offset += self.bits_per_slice
         self.count += 1
         return False
