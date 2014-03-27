@@ -19,6 +19,7 @@ class BloomFilter(object):
 
     def initialize_bitarray(self):
         self.bitarray = bitarray.bitarray(self.nbr_bits)
+        self.bitarray.setall(False)
 
     def __contains__(self, key):
         self.hashed_values = self.hashes(key)
@@ -36,7 +37,7 @@ class BloomFilter(object):
         if not self.hashed_values:
             self.hashed_values = self.hashes(key)
         for value in self.hashed_values:
-            self.bitarray[offset + value] = 1
+            self.bitarray[offset + value] = True
             offset += self.bits_per_slice
         self.count += 1
         return False
