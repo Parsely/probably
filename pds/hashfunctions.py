@@ -2,9 +2,10 @@
 import smhasher
 
 def generate_hashfunctions(nbr_bits, nbr_slices):
-    """ Generate a set of hash functions
-        The core method is 32-bits murmur3 hash which have good distribution properties
-        Multiple hashes can be generate using the previous hash value as a seed.
+    """Generate a set of hash functions.
+
+    The core method is 32-bits murmur3 hash which have good distribution properties
+    Multiple hashes can be generate using the previous hash value as a seed.
     """
     def _make_hashfuncs(key):
         if isinstance(key, unicode):
