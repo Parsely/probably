@@ -2,8 +2,10 @@ import os
 import cPickle
 import glob
 import datetime as dt
-import numpy as np
+import time
 import zlib
+
+import numpy as np
 
 from bloomfilter import BloomFilter
 from hashfunctions import generate_hashfunctions
@@ -31,12 +33,12 @@ class DailyTemporalBloomFilter(BloomFilter):
         self.snapshot_to_load = None
         self.ready = False
         self.warm_period = None
-        self.last_snapshot_load = dt.datetime.now()
+        self.next_snapshot_load = time.time()
 
     def initialize_period(self, period=None):
         """Initialize the period of BF.
 
-        :override: datetime.datetime for setting the period explicity.
+        :period: datetime.datetime for setting the period explicity.
         """
         if not period:
             self.current_period = dt.datetime.now()
@@ -58,16 +60,16 @@ class DailyTemporalBloomFilter(BloomFilter):
     def compute_refresh_period(self):
         self.warm_period =  (60 * 60 * 24) // (self.expiration-2)
 
-    def should_warm(self):
-        current_time = dt.datetime.now()
-        time_difference = current_time - self.last_snapshot_load
-        return time_difference.seconds > self.warm_period
+    def _should_warm(self):
+        return time.time() >= self.next_snapshot_load
 
-    def warm(self):
+    def warm(self, jittering_ratio=0.2):
         """Progressively load the previous snapshot during the day.
 
         Loading all the snapshots at once can takes a substantial amount of time. This method, if called
-        periodically during the day will progressively load those snapshots one by one.
+        periodically during the day will progressively load those snapshots one by one. Because many workers are
+        going to use this method at the same time, we add a jittering to the period between load to avoid
+        hammering the disk at the same time.
         """
         if self.snapshot_to_load == None:
             last_period = self.current_period - dt.timedelta(days=self.expiration-1)
@@ -80,10 +82,11 @@ class DailyTemporalBloomFilter(BloomFilter):
                 if snapshot_period >= last_period:
                     self.snapshot_to_load.append(filename)
 
-        if self.snapshot_to_load and self.should_warm():
+        if self.snapshot_to_load and self._should_warm():
             filename = self.snapshot_to_load.pop()
             self._union_bf_from_file(filename)
-            self.last_snapshot_load = dt.datetime.now()
+            jittering = self.warm_period * (np.random.random()-0.5) * jittering_ratio
+            self.next_snapshot_load = time.time() + self.warm_period + jittering
             return
 
         self.ready = True
