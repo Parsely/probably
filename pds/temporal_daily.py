@@ -55,6 +55,7 @@ class DailyTemporalBloomFilter(object):
         self.bitarray = bitarray.bitarray(self.nbr_bits)
         self.current_day_bitarray = bitarray.bitarray(self.nbr_bits)
         self.bitarray.setall(False)
+        self.current_day_bitarray.setall(False)
 
     def __contains__(self, key):
         """Check membership."""
