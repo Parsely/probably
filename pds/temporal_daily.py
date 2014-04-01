@@ -5,13 +5,14 @@ import datetime as dt
 import time
 import zlib
 
+import bitarray
 import numpy as np
 
 from bloomfilter import BloomFilter
 from hashfunctions import generate_hashfunctions
 
 
-class DailyTemporalBloomFilter(BloomFilter):
+class DailyTemporalBloomFilter(object):
     """Long Range Temporal BloomFilter using a daily resolution.
 
     For really high value of expiration (like 60 days) with low requirement on precision.
@@ -25,7 +26,15 @@ class DailyTemporalBloomFilter(BloomFilter):
     """
 
     def __init__(self, capacity, error_rate, expiration, name, snapshot_path):
-        super(DailyTemporalBloomFilter, self).__init__(capacity, error_rate)
+        self.error_rate = error_rate
+        self.capacity = capacity
+        self.nbr_slices = int(np.ceil(np.log2(1.0 / error_rate)))
+        self.bits_per_slice = int(np.ceil((capacity * abs(np.log(error_rate))) / (self.nbr_slices * (np.log(2) ** 2))))
+        self.nbr_bits = self.nbr_slices * self.bits_per_slice
+        self.initialize_bitarray()
+        self.count = 0
+        self.hashes = generate_hashfunctions(self.bits_per_slice, self.nbr_slices)
+        self.hashed_values = []
         self.name = name
         self.snapshot_path = snapshot_path
         self.expiration = expiration
@@ -34,6 +43,41 @@ class DailyTemporalBloomFilter(BloomFilter):
         self.ready = False
         self.warm_period = None
         self.next_snapshot_load = time.time()
+
+    def initialize_bitarray(self):
+        """Initialize both bitarray.
+
+        This BF contain two bit arrays instead of single one like a plain BF. bitarray
+        is the main bit array where all the historical items are stored. It's the one
+        used for the membership query. The second one, current_day_bitarray is the one
+        used for creating the daily snapshot.
+        """
+        self.bitarray = bitarray.bitarray(self.nbr_bits)
+        self.current_day_bitarray = bitarray.bitarray(self.nbr_bits)
+        self.bitarray.setall(False)
+
+    def __contains__(self, key):
+        """Check membership."""
+        self.hashed_values = self.hashes(key)
+        offset = 0
+        for value in self.hashed_values:
+            if not self.bitarray[offset + value]:
+                return False
+            offset += self.bits_per_slice
+        return True
+
+    def add(self, key):
+        if key in self:
+            return True
+        offset = 0
+        if not self.hashed_values:
+            self.hashed_values = self.hashes(key)
+        for value in self.hashed_values:
+            self.bitarray[offset + value] = True
+            self.current_day_bitarray[offset + value] = True
+            offset += self.bits_per_slice
+        self.count += 1
+        return False
 
     def initialize_period(self, period=None):
         """Initialize the period of BF.
@@ -91,9 +135,12 @@ class DailyTemporalBloomFilter(BloomFilter):
 
         self.ready = True
 
-    def _union_bf_from_file(self, filename):
+    def _union_bf_from_file(self, filename, current=False):
         snapshot = cPickle.loads(zlib.decompress(open(filename,'r').read()))
-        self.bitarray = self.bitarray | snapshot
+        if current:
+            self.current_day_bitarray = self.current_day_bitarray | snapshot
+        else:
+            self.bitarray = self.bitarray | snapshot
 
     def restore_from_disk(self, clean_old_snapshot=False):
         """Restore the state of the BF using previous snapshots.
@@ -109,20 +156,22 @@ class DailyTemporalBloomFilter(BloomFilter):
                 continue
             else:
                 self._union_bf_from_file(filename)
+                if snapshot_period == self.current_period:
+                    self._union_bf_from_file(filename, current=True)
 
             if snapshot_period < last_period and clean_old_snapshot:
                 os.remove(filename)
         self.ready = True
 
     def save_snaphot(self):
-        """Save the current state of the snapshot on disk.
+        """Save the current state of the current day bitarray on disk.
 
         Save the internal representation (bitarray) into a binary file using this format:
             filename : name_expiration_2013-01-01.dat
         """
         filename = "%s/%s_%s_%s.dat" % (self.snapshot_path, self.name, self.expiration, self.date)
         with open(filename, 'w') as f:
-            f.write(zlib.compress(cPickle.dumps(self.bitarray, protocol=cPickle.HIGHEST_PROTOCOL)))
+            f.write(zlib.compress(cPickle.dumps(self.current_day_bitarray, protocol=cPickle.HIGHEST_PROTOCOL)))
 
 
 if __name__ == "__main__":
