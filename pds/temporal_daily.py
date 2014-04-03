@@ -175,17 +175,10 @@ class DailyTemporalBloomFilter(object):
         with open(filename, 'w') as f:
             f.write(zlib.compress(cPickle.dumps(self.current_day_bitarray, protocol=cPickle.HIGHEST_PROTOCOL)))
 
-    def rebuild_from_db(self):
-        """Rebuild the all the snapshots using a full set stored in a db.
-        """
-        pass
-
-    def resize(self):
-        """Reinitialize the BF to new capacity and rebuild from db"""
-        pass
-
     def union_current_day(self, bf):
+        """Union only the current_day of an other BF."""
         self.bitarray = self.bitarray | bf.current_day_bitarray
+
 
 if __name__ == "__main__":
     import numpy as np
