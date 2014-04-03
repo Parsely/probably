@@ -39,6 +39,6 @@ setup(
     packages=find_packages(exclude=['ez_setup']),
     platforms=['any'],
     zip_safe=False,
-    install_requires=['numpy', 'cython'],
+    install_requires=['numpy', 'cython', 'bitarray'],
     ext_modules = [Extension("maintenance", ["pds/maintenance.c"], include_dirs=[numpy.get_include()])],
 )
