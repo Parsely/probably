@@ -126,15 +126,16 @@ class DailyTemporalBloomFilter(object):
                 snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.dat'), "%Y-%m-%d")
                 if snapshot_period >= last_period:
                     self.snapshot_to_load.append(filename)
+                    self.ready = False
 
         if self.snapshot_to_load and self._should_warm():
             filename = self.snapshot_to_load.pop()
             self._union_bf_from_file(filename)
             jittering = self.warm_period * (np.random.random()-0.5) * jittering_ratio
             self.next_snapshot_load = time.time() + self.warm_period + jittering
-            return
+            if not self.snapshot_to_load:
+                self.ready = True
 
-        self.ready = True
 
     def _union_bf_from_file(self, filename, current=False):
         snapshot = cPickle.loads(zlib.decompress(open(filename,'r').read()))
@@ -174,6 +175,17 @@ class DailyTemporalBloomFilter(object):
         with open(filename, 'w') as f:
             f.write(zlib.compress(cPickle.dumps(self.current_day_bitarray, protocol=cPickle.HIGHEST_PROTOCOL)))
 
+    def rebuild_from_db(self):
+        """Rebuild the all the snapshots using a full set stored in a db.
+        """
+        pass
+
+    def resize(self):
+        """Reinitialize the BF to new capacity and rebuild from db"""
+        pass
+
+    def union_current_day(self, bf):
+        self.bitarray = self.bitarray | bf.current_day_bitarray
 
 if __name__ == "__main__":
     import numpy as np
