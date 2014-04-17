@@ -11,9 +11,6 @@ DEF LN2 = 0.693147180559945  # ln(2)
 cdef extern from "stdlib.h" nogil:
     long long int llabs(long long int j)
 
-cdef extern from "MurmurHash2A.h" nogil:
-    unsigned int MurmurHash2A (void * key, int len, unsigned int seed)
-
 cdef extern from "MurmurHash3.h":
     void MurmurHash3_x86_32(void *key, int len, unsigned long seed, void *out)
     void MurmurHash3_x86_128(void *key, int len, unsigned long seed, void *out)
