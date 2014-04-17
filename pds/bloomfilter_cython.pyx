@@ -1,5 +1,7 @@
 cimport cython
 
+import math
+
 from libc.stdlib cimport malloc, free
 from libc.math cimport log, ceil
 from libc.stdio cimport printf
@@ -28,16 +30,16 @@ cdef class BloomFilter:
     cdef unsigned long long bits_per_slice
     cdef double error
 
-    def __cinit__(self, capacity, error):
+    def __cinit__(self, capacity, error_rate):
         self.capacity = capacity
-        self.error = error
+        self.error = error_rate
 
-        cdef double numerator = log(self.error)
-        self.bits_per_slice = <long long>-(numerator / LN2_SQUARED)
+        self.nbr_slices = int(math.floor(math.log(1.0 / error_rate, 2.0)))
+        self.bits_per_slice = int(math.ceil(
+                capacity * abs(math.log(error_rate)) /
+                (self.nbr_slices * (math.log(2) ** 2))))
 
-        cdef double dcapacity = <double>capacity
-        self.nbr_bits = <long long>(dcapacity * self.bits_per_slice)
-        self.nbr_slices = <long long>ceil(LN2 * self.bits_per_slice)
+        self.nbr_bits = self.nbr_slices * self.bits_per_slice
 
         for i in range(self.nbr_slices):
             self._bucket_indexes[i]=0
@@ -54,23 +56,20 @@ cdef class BloomFilter:
                    nbr. bytes: %s
                    nbr. hashes: %s """ % (self.nbr_bits, self.nbr_bytes, self.nbr_slices)
 
-
     @cython.boundscheck(False)
     cdef int __check_or_add(self, const char *value, int should_add=1):
         cdef int hits = 0
         cdef int val_len = len(value)
-
         cdef unsigned long a
         cdef unsigned long b
-
-        MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
-        MurmurHash3_x86_32(<char*> value, val_len, a, &b)
-
         cdef unsigned int x
         cdef unsigned int i
         cdef unsigned int byte
         cdef unsigned int mask
         cdef unsigned char c
+
+        MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
+        MurmurHash3_x86_32(<char*> value, val_len, a, &b)
 
         for i in range(self.nbr_slices):
             x = (a + i * b) % self.nbr_bits
@@ -85,12 +84,15 @@ cdef class BloomFilter:
                     self.bitarray[byte] = c | mask
 
         if hits == self.nbr_slices:
-            return 1  # 1 == element already in (or collision)
+            return 1
 
         return 0
 
     def add(self, const char *value):
         return self.__check_or_add(value, True) == 1
+
+    def is_member(self, const char *value):
+        return self.__check_or_add(value, False) == 1
 
     def __dealloc__(self):
             PyMem_Free(self.bitarray)
