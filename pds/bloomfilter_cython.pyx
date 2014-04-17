@@ -19,6 +19,7 @@ cdef extern from "MurmurHash3.h":
     void MurmurHash3_x86_128(void *key, int len, unsigned long seed, void *out)
     void MurmurHash3_x64_128 (void *key, int len, unsigned long seed, void *out)
 
+
 cdef class BloomFilter:
 
     cdef unsigned int nbr_slices
@@ -60,17 +61,13 @@ cdef class BloomFilter:
     @cython.boundscheck(False)
     cdef int __check_or_add(self, const char *value, int should_add=1):
         cdef int hits = 0
-        cdef unsigned int val_len = len(value)
-        cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
-        cdef unsigned int b = MurmurHash2A(value, val_len, a)
-        #cdef unsigned long a[2]
-        #cdef unsigned long b[2]
+        cdef int val_len = len(value)
 
-        #MurmurHash3_x86_32(&value, val_len, 0x9747b28c, a)
-        #MurmurHash3_x86_32(&value, val_len, a[0], b)
+        cdef unsigned long a
+        cdef unsigned long b
 
-        printf("%d\n", a)
-        printf("%d\n", b)
+        MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
+        MurmurHash3_x86_32(<char*> value, val_len, a, &b)
 
         cdef unsigned int x
         cdef unsigned int i
