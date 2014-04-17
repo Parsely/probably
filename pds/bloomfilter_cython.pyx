@@ -18,6 +18,8 @@ cdef extern from "MurmurHash3.h":
     void MurmurHash3_x86_128(void *key, int len, unsigned long seed, void *out)
     void MurmurHash3_x64_128 (void *key, int len, unsigned long seed, void *out)
 
+cdef extern from "MurmurHash2A.h" nogil:
+    unsigned int MurmurHash2A (void * key, int len, unsigned int seed)
 
 cdef class BloomFilter:
 
@@ -60,16 +62,18 @@ cdef class BloomFilter:
     cdef int __check_or_add(self, const char *value, int should_add=1):
         cdef int hits = 0
         cdef int val_len = len(value)
-        cdef unsigned long a
-        cdef unsigned long b
+        #cdef unsigned long a
+        #cdef unsigned long b
+        cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
+        cdef unsigned int b = MurmurHash2A(value, val_len, a)
         cdef unsigned int x
         cdef unsigned int i
         cdef unsigned int byte
         cdef unsigned int mask
         cdef unsigned char c
 
-        MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
-        MurmurHash3_x86_32(<char*> value, val_len, a, &b)
+        #MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
+        #MurmurHash3_x86_32(<char*> value, val_len, a, &b)
 
         for i in range(self.nbr_slices):
             x = (a + i * b) % self.nbr_bits
