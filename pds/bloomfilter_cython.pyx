@@ -21,6 +21,7 @@ cdef extern from "MurmurHash3.h":
 cdef extern from "MurmurHash2A.h" nogil:
     unsigned int MurmurHash2A (void * key, int len, unsigned int seed)
 
+
 cdef class BloomFilter:
 
     cdef unsigned int nbr_slices
@@ -66,10 +67,12 @@ cdef class BloomFilter:
         for i in range(self.nbr_bits):
             self._set_bit(i,0)
 
-    def __str__(self):
-        return """ nbr. bits: %s
+    def __repr__(self):
+        return """ Capacity: %s
+                   Error rate: %s
+                   nbr. bits: %s
                    nbr. bytes: %s
-                   nbr. hashes: %s """ % (self.nbr_bits, self.nbr_bytes, self.nbr_slices)
+                   nbr. hashes: %s """ % (self.capacity, self.error_rate, self.nbr_bits, self.nbr_bytes, self.nbr_slices)
 
     cdef int _get_bit(self, unsigned long index):
         bytepos, bitpos = divmod(index, 8)
