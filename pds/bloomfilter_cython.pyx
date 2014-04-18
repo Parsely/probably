@@ -52,11 +52,35 @@ cdef class BloomFilter:
         else:
             self.nbr_bytes = self.nbr_bits / 8
         self.bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
+        self._initialize_bitarray()
+
+    cdef void _initialize_bitarray(self):
+        for i in range(self.nbr_bits):
+            self._set_bit(i,0)
 
     def __str__(self):
         return """ nbr. bits: %s
                    nbr. bytes: %s
                    nbr. hashes: %s """ % (self.nbr_bits, self.nbr_bytes, self.nbr_slices)
+
+    cdef int _get_bit(self, unsigned long index):
+        bytepos, bitpos = divmod(index, 8)
+        return (self.bitarray[bytepos] >> bitpos) & 1
+
+    def get_bit(self, unsigned long index):
+        return self._get_bit(index)
+
+    cdef void _set_bit(self, int index, int value):
+        cdef int bytepos
+        cdef int bitpos
+        bytepos, bitpos = divmod(index, 8)
+        if value:
+            self.bitarray[bytepos] |= 1 << bitpos
+        else:
+            self.bitarray[bytepos] &= ~(1 << bitpos)
+
+    def set_bit(self, unsigned long index, int value):
+        self._set_bit(index, value)
 
     @cython.boundscheck(False)
     cdef int __check_or_add(self, const char *value, int should_add=1):
