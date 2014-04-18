@@ -132,7 +132,7 @@ cdef class BloomFilter:
     @cython.wraparound(False)
     @cython.boundscheck(False)
     @cython.cdivision(True)
-    cdef int __check_or_add(self, const char *value, int should_add=1):
+    cdef int _check_or_add(self, const char *value, int should_add=1):
         cdef int hits = 0
         cdef int val_len = len(value)
         #cdef unsigned long a
@@ -173,10 +173,10 @@ cdef class BloomFilter:
         return self._count
 
     def add(self, const char *value):
-        return self.__check_or_add(value, 1) == 1
+        return self._check_or_add(value, True) == 1
 
     def contains(self, const char *value):
-        return self.__check_or_add(value, 0) == 1
+        return self._check_or_add(value, False) == 1
 
     def __contains__(self, value):
         return self.contains(value)
@@ -205,7 +205,7 @@ cdef class DailyTemporalBase(BloomFilter):
     @cython.wraparound(False)
     @cython.boundscheck(False)
     @cython.cdivision(True)
-    cdef int __check_or_add(self, const char *value, int should_add=1, int update_current=1):
+    cdef int _check_or_add_all(self, const char *value, int should_add=1, int update_current=1):
         cdef int hits = 0
         cdef int val_len = len(value)
         #cdef unsigned long a
@@ -243,12 +243,12 @@ cdef class DailyTemporalBase(BloomFilter):
 
         return 0
 
-    def add(self, const char *value, update_current=True):
+    def add(self, const char *value):
         """Update the filter.
 
         :update_current: Update the current_bitarray and bitarray if True (realtime use).
         """
-        return self.__check_or_add(value, 1, int(update_current)) == 1
+        return self._check_or_add_all(value, should_add=1, update_current=1) == 1
 
     def _save_snapshot(self,  char* filename, current=True):
         f = fopen(filename, 'w')
