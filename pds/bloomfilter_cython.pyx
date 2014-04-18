@@ -32,11 +32,13 @@ cdef class BloomFilter:
     cdef unsigned long long capacity
     cdef unsigned long long bits_per_slice
     cdef double error_rate
+    cdef unsigned long long _count
 
     def __cinit__(self, capacity, error_rate):
         self.capacity = capacity
         self.error_rate = error_rate
         self._initialize_parameters()
+        self._count = 0
 
     def _initialize_parameters(self):
         self.nbr_slices = int(math.floor(math.log(1.0 / self.error_rate, 2.0)))
@@ -61,11 +63,15 @@ cdef class BloomFilter:
         self.capacity = capacity
 
     def initialize_bitarray(self):
+        self._count = 0
         self._initialize_bitarray()
 
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
     cdef void _initialize_bitarray(self):
-        for i in range(self.nbr_bits):
-            self._set_bit(i,0)
+        for i in range(self.nbr_bytes):
+            self.bitarray[i] = 0
 
     def __repr__(self):
         return """ Capacity: %s
@@ -93,7 +99,9 @@ cdef class BloomFilter:
     def set_bit(self, unsigned long index, int value):
         self._set_bit(index, value)
 
+    @cython.wraparound(False)
     @cython.boundscheck(False)
+    @cython.cdivision(True)
     cdef int __check_or_add(self, const char *value, int should_add=1):
         cdef int hits = 0
         cdef int val_len = len(value)
@@ -125,7 +133,14 @@ cdef class BloomFilter:
         if hits == self.nbr_slices:
             return 1
 
+        if should_add:
+            self._count += 1
+
         return 0
+
+    @property
+    def count(self):
+        return self._count
 
     def add(self, const char *value):
         return self.__check_or_add(value, True) == 1
