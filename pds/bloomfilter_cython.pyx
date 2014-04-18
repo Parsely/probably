@@ -30,15 +30,17 @@ cdef class BloomFilter:
     cdef unsigned long long nbr_bytes
     cdef unsigned long long capacity
     cdef unsigned long long bits_per_slice
-    cdef double error
+    cdef double error_rate
 
     def __cinit__(self, capacity, error_rate):
         self.capacity = capacity
-        self.error = error_rate
+        self.error_rate = error_rate
+        self._initialize_parameters()
 
-        self.nbr_slices = int(math.floor(math.log(1.0 / error_rate, 2.0)))
+    def _initialize_parameters(self):
+        self.nbr_slices = int(math.floor(math.log(1.0 / self.error_rate, 2.0)))
         self.bits_per_slice = int(math.ceil(
-                capacity * abs(math.log(error_rate)) /
+                self.capacity * abs(math.log(self.error_rate)) /
                 (self.nbr_slices * (math.log(2) ** 2))))
 
         self.nbr_bits = self.nbr_slices * self.bits_per_slice
@@ -52,6 +54,12 @@ cdef class BloomFilter:
         else:
             self.nbr_bytes = self.nbr_bits / 8
         self.bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
+        self._initialize_bitarray()
+
+    def _set_capacity(self, capacity):
+        self.capacity = capacity
+
+    def initialize_bitarray(self):
         self._initialize_bitarray()
 
     cdef void _initialize_bitarray(self):
@@ -119,8 +127,11 @@ cdef class BloomFilter:
     def add(self, const char *value):
         return self.__check_or_add(value, True) == 1
 
-    def is_member(self, const char *value):
+    def contains(self, const char *value):
         return self.__check_or_add(value, False) == 1
+
+    def __contains__(self, value):
+        return self.contains(value)
 
     def __dealloc__(self):
             PyMem_Free(self.bitarray)

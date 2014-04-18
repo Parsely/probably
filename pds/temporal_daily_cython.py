@@ -101,13 +101,27 @@ class DailyTemporalBloomFilter(BloomFilter):
 
         for row_content in rows_content.values():
             for k in row_content.keys():
-                self.add(k, rebuild_mode=True)
+                self.add_rebuild(k)
 
-    def add(self, key, rebuild_mode=False):
-        if not rebuild_mode:
-            self.archive_bf_key(key)
+    def add_rebuild(self, key):
+        super(DailyTemporalBloomFilter, self).add(key)
+
+    def add(self, key_string):
+        if isinstance(key_string, unicode):
+            key = key_string.encode('utf8')
+        else:
+            key = key_string
+
+        self.archive_bf_key(key)
         result = super(DailyTemporalBloomFilter, self).add(key)
+
         return result
+
+    def resize(self, new_capacity):
+        self._set_capacity(new_capacity)
+        self._initialize_parameters()
+        self.initialize_bitarray()
+        self.rebuild_from_archive()
 
     def initialize_period(self, period=None):
         """Initialize the period of BF.

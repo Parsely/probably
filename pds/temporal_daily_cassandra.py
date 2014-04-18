@@ -94,23 +94,31 @@ class DailyTemporalBloomFilter(object):
         self._initialize_parameters()
         self.rebuild_from_archive()
 
-    def rebuild_from_archive(self):
-        """Rebuild the BF using the archived items"""
-        self.initialize_period()
-        self.initialize_bitarray()
+    def _drop_archive(self):
         last_period = self.current_period - dt.timedelta(days=self.expiration-1)
         hours = self._hour_range(last_period, dt.datetime.now())
         for hour in hours:
             try:
                 row = "%s_%s" % (self.name, hour.strftime('%Y-%m-%d:%H'))
-                print row
                 nbr_keys = self.columnfamily.get_count(row)
-                keys = self.columnfamily.get(row, column_count=nbr_keys).keys()
-                for k in keys:
-                    print k
-                    self.add(k)
-            except NotFoundException:
+                keys = self.columnfamily.remove(row)
+            except:
                 pass
+
+    def rebuild_from_archive(self):
+        """Rebuild the BF using the archived items"""
+        self.initialize_bitarray()
+        last_period = self.current_period - dt.timedelta(days=self.expiration-1)
+        hours = self._hour_range(last_period, dt.datetime.now())
+        rows = []
+        for i,hour in enumerate(hours):
+            row = "%s_%s" % (self.name, hour.strftime('%Y-%m-%d:%H'))
+            rows.append(row)
+        rows_content = self.columnfamily.multiget(rows, column_count=1E6)
+
+        for row_content in rows_content.values():
+            for k in row_content.keys():
+                self.add(k, rebuild_mode=True)
 
     def initialize_bitarray(self):
         """Initialize both bitarray.
@@ -135,8 +143,9 @@ class DailyTemporalBloomFilter(object):
             offset += self.bits_per_slice
         return True
 
-    def add(self, key):
-        self.archive_bf_key(key)
+    def add(self, key, rebuild_mode=False):
+        if not rebuild_mode:
+            self.archive_bf_key(key)
         if key in self:
             return True
         offset = 0
@@ -255,16 +264,16 @@ if __name__ == "__main__":
 
     pool = ConnectionPool('parsely')
 
-    bf = DailyTemporalBloomFilter(10000, 0.01, 60, 'session_site', './', pool)
+    bf = DailyTemporalBloomFilter(100000, 0.01, 60, 'session_site', './', pool)
 
-    random_items = [str(r) for r in np.random.randn(20000)]
-    for item in random_items[:10000]:
+    random_items = [str(r) for r in np.random.randn(200000)]
+    for item in random_items[:100000]:
         bf.add(item)
 
     false_positive = 0
-    for item in random_items[10000:20000]:
+    for item in random_items[100000:200000]:
         if item in bf:
             false_positive += 1
 
-    print "Error rate (false positive): %s" % str(float(false_positive) / 10000)
+    print "Error rate (false positive): %s" % str(float(false_positive) / 100000)
 
