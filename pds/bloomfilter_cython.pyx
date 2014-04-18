@@ -22,98 +22,6 @@ cdef extern from "MurmurHash2A.h" nogil:
     unsigned int MurmurHash2A (void * key, int len, unsigned int seed)
 
 
-cdef class DailyTemporalBase(BloomFilter):
-
-    cdef unsigned char *current_day_bitarray
-
-    def __cinit__(self, capacity, error_rate):
-        self.capacity = capacity
-        self.error_rate = error_rate
-        self._initialize_parameters()
-        self._count = 0
-
-        self.current_day_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
-        self.bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
-        if not (self.bitarray and self.current_day_bitarray):
-            raise MemoryError("Unable to allocate memory for BloomFilter")
-        else:
-            self._initialize_bitarray()
-
-    @cython.wraparound(False)
-    @cython.boundscheck(False)
-    @cython.cdivision(True)
-    cdef int __check_or_add(self, const char *value, int should_add=1):
-        cdef int hits = 0
-        cdef int val_len = len(value)
-        #cdef unsigned long a
-        #cdef unsigned long b
-        cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
-        cdef unsigned int b = MurmurHash2A(value, val_len, a)
-        cdef unsigned int x
-        cdef unsigned int i
-        cdef unsigned int byte
-        cdef unsigned int mask
-        cdef unsigned char c
-
-        #MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
-        #MurmurHash3_x86_32(<char*> value, val_len, a, &b)
-
-        for i in range(self.nbr_slices):
-            x = (a + i * b) % self.nbr_bits
-            byte = x >> 3
-            c = self.bitarray[byte]
-            mask = 1 << (x % 8)
-
-            if c & mask:
-                hits += 1
-            else:
-                if should_add == 1:
-                    self.bitarray[byte] = c | mask
-                    self.current_day_bitarray[byte] = c | mask
-
-        if hits == self.nbr_slices:
-            return 1
-
-        if should_add:
-            self._count += 1
-
-        return 0
-
-    def _save_snapshot(self,  char* filename, current=True):
-        f = fopen(filename, 'w')
-        if current:
-            fwrite(self.current_day_bitarray, 1, self.nbr_bytes, f)
-        else:
-            fwrite(self.bitarray, 1, self.nbr_bytes, f)
-        fclose(f)
-
-    def _union_bf_from_file(self, char* filename, current=False):
-        temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
-
-        f = fopen(filename, "r")
-        fread(temp_bitarray, 1, self.nbr_bytes, f)
-        fclose(f)
-
-        if current:
-            self._bitarray_or(self.current_day_bitarray, temp_bitarray)
-        else:
-            self._bitarray_or(self.bitarray, temp_bitarray)
-        PyMem_Free(temp_bitarray)
-
-    @cython.wraparound(False)
-    @cython.boundscheck(False)
-    @cython.cdivision(True)
-    cdef void _initialize_bitarray(self):
-        for i in range(self.nbr_bytes):
-            self.bitarray[i] = 0
-            self.current_day_bitarray[i] = 0
-
-    def __dealloc__(self):
-        # The __dealloc__ of the superclass is always call
-        # So bitarray will be dealloc there
-        PyMem_Free(self.current_day_bitarray)
-
-
 cdef class BloomFilter:
 
     cdef unsigned int nbr_slices
@@ -265,13 +173,115 @@ cdef class BloomFilter:
         return self._count
 
     def add(self, const char *value):
-        return self.__check_or_add(value, True) == 1
+        return self.__check_or_add(value, 1) == 1
 
     def contains(self, const char *value):
-        return self.__check_or_add(value, False) == 1
+        return self.__check_or_add(value, 0) == 1
 
     def __contains__(self, value):
         return self.contains(value)
 
     def __dealloc__(self):
         PyMem_Free(self.bitarray)
+
+
+cdef class DailyTemporalBase(BloomFilter):
+
+    cdef unsigned char *current_day_bitarray
+
+    def __cinit__(self, capacity, error_rate):
+        self.capacity = capacity
+        self.error_rate = error_rate
+        self._initialize_parameters()
+        self._count = 0
+
+        self.current_day_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
+        self.bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
+        if not (self.bitarray and self.current_day_bitarray):
+            raise MemoryError("Unable to allocate memory for BloomFilter")
+        else:
+            self._initialize_bitarray()
+
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
+    cdef int __check_or_add(self, const char *value, int should_add=1, int update_current=1):
+        cdef int hits = 0
+        cdef int val_len = len(value)
+        #cdef unsigned long a
+        #cdef unsigned long b
+        cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
+        cdef unsigned int b = MurmurHash2A(value, val_len, a)
+        cdef unsigned int x
+        cdef unsigned int i
+        cdef unsigned int byte
+        cdef unsigned int mask
+        cdef unsigned char c
+
+        #MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
+        #MurmurHash3_x86_32(<char*> value, val_len, a, &b)
+
+        for i in range(self.nbr_slices):
+            x = (a + i * b) % self.nbr_bits
+            byte = x >> 3
+            c = self.bitarray[byte]
+            mask = 1 << (x % 8)
+
+            if c & mask:
+                hits += 1
+            else:
+                if should_add == 1:
+                    self.bitarray[byte] = c | mask
+                    if update_current == 1:
+                        self.current_day_bitarray[byte] = c | mask
+
+        if hits == self.nbr_slices:
+            return 1
+
+        if should_add:
+            self._count += 1
+
+        return 0
+
+    def add(self, const char *value, update_current):
+        """Update the filter.
+
+        :update_current: Update the current_bitarray and bitarray if True (realtime use).
+        """
+        return self.__check_or_add(value, 1, int(update_current)) == 1
+
+    def _save_snapshot(self,  char* filename, current=True):
+        f = fopen(filename, 'w')
+        if current:
+            fwrite(self.current_day_bitarray, 1, self.nbr_bytes, f)
+        else:
+            fwrite(self.bitarray, 1, self.nbr_bytes, f)
+        fclose(f)
+
+    def _union_bf_from_file(self, char* filename, current=False):
+        temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
+
+        f = fopen(filename, "r")
+        fread(temp_bitarray, 1, self.nbr_bytes, f)
+        fclose(f)
+
+        if current:
+            self._bitarray_or(self.current_day_bitarray, temp_bitarray)
+        else:
+            self._bitarray_or(self.bitarray, temp_bitarray)
+        PyMem_Free(temp_bitarray)
+
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
+    cdef void _initialize_bitarray(self):
+        for i in range(self.nbr_bytes):
+            self.bitarray[i] = 0
+            self.current_day_bitarray[i] = 0
+
+    def __dealloc__(self):
+        # The __dealloc__ of the superclass is always call
+        # So bitarray will be dealloc there
+        PyMem_Free(self.current_day_bitarray)
+
+

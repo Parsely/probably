@@ -101,7 +101,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             except:
                 pass
 
-    def rebuild_from_archive(self, rebuild_snapshot=False):
+    def rebuild_from_archive(self, rebuild_snapshot=True):
         """Rebuild the BF using the archived items"""
         self.initialize_bitarray()
 
@@ -120,9 +120,10 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         for i,day in enumerate(days):
             rows = ["%s_%s:%s" % (self.bf_name, day.strftime('%Y-%m-%d'), hour_str) for hour_str in ["%02d" % i for i in range(24)]]
             rows_content = self.columnfamily.multiget(rows, column_count=1E6)
+            update_current = day == self.current_period
 
             for k in multi_rows_itr(rows_content):
-                self.add_rebuild(k)
+                self.add_rebuild(k, update_current)
 
             if rebuild_snapshot:
                 self.save_snaphot(override_period=day)
@@ -149,7 +150,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.ready = True
 
     def add_rebuild(self, key):
-        super(DailyTemporalBloomFilter, self).add(key)
+        super(DailyTemporalBloomFilter, self).add(key, update_current)
 
     def add(self, key_string):
         if isinstance(key_string, unicode):
