@@ -128,6 +128,9 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             if rebuild_snapshot:
                 self.save_snaphot(override_period=day)
 
+            if not update_current:
+                self.initialize_current_day_bitarray()
+
     def restore_from_disk(self, clean_old_snapshot=False):
         """Restore the state of the BF using previous snapshots.
 
@@ -149,7 +152,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                 os.remove(filename)
         self.ready = True
 
-    def add_rebuild(self, key):
+    def add_rebuild(self, key, update_current=True):
         super(DailyTemporalBloomFilter, self).add(key, update_current)
 
     def add(self, key_string):

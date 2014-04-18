@@ -243,7 +243,7 @@ cdef class DailyTemporalBase(BloomFilter):
 
         return 0
 
-    def add(self, const char *value, update_current):
+    def add(self, const char *value, update_current=True):
         """Update the filter.
 
         :update_current: Update the current_bitarray and bitarray if True (realtime use).
@@ -278,6 +278,16 @@ cdef class DailyTemporalBase(BloomFilter):
         for i in range(self.nbr_bytes):
             self.bitarray[i] = 0
             self.current_day_bitarray[i] = 0
+
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
+    cdef void _initialize_current_day_bitarray(self):
+        for i in range(self.nbr_bytes):
+            self.current_day_bitarray[i] = 0
+
+    def initialize_current_day_bitarray(self):
+        self._initialize_current_day_bitarray()
 
     def __dealloc__(self):
         # The __dealloc__ of the superclass is always call
