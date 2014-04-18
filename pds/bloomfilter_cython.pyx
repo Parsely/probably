@@ -4,7 +4,7 @@ import math
 
 from libc.stdlib cimport malloc, free
 from libc.math cimport log, ceil
-from libc.stdio cimport printf
+from libc.stdio cimport printf, FILE, fopen, fwrite, fclose, fread
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 
 DEF LN2_SQUARED = 0.480453013918201  # ln(2)^2
@@ -57,14 +57,34 @@ cdef class BloomFilter:
         else:
             self.nbr_bytes = self.nbr_bits / 8
         self.bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
-        self._initialize_bitarray()
+        if not self.bitarray:
+            raise MemoryError("Unable to allocate memory for BloomFilter")
+        else:
+            self._initialize_bitarray()
 
     def _set_capacity(self, capacity):
         self.capacity = capacity
 
+    def save_snapshot(self,  char* filename):
+        f = fopen(filename, 'w')
+        fwrite(self.bitarray, 1, self.nbr_bytes, f)
+        fclose(f)
+
+    def read_snapshot(self, char* filename):
+        f = fopen(filename, "r")
+        fread(self.bitarray, 1, self.nbr_bytes, f)
+        fclose(f)
+
     def initialize_bitarray(self):
         self._count = 0
         self._initialize_bitarray()
+
+    cdef void _bitarray_or(self, unsigned char* other_bitarray):
+        for i in range(self.nbr_bytes):
+            self.bitarray[i] = self.bitarray[i] | other_bitarray[i]
+
+    def union(self, BloomFilter other):
+        self._bitarray_or(other.bitarray)
 
     @cython.wraparound(False)
     @cython.boundscheck(False)
