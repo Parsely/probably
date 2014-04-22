@@ -135,22 +135,30 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         """Restore the state of the BF using previous snapshots.
 
         :clean_old_snapshot: Delete the old snapshot on the disk (period < current - expiration)
+
+        This method will overwrite the BF parameters with the those in the snapshot.
         """
         base_filename = "%s/%s_%s_*.dat" % (self.snapshot_path, self.bf_name, self.expiration)
         availables_snapshots = glob.glob(base_filename)
         last_period = self.current_period - dt.timedelta(days=self.expiration-1)
-        for filename in availables_snapshots:
-            snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.dat'), "%Y-%m-%d")
-            if snapshot_period <  last_period and not clean_old_snapshot:
-                continue
-            else:
-                self._union_bf_from_file(filename)
-                if snapshot_period == self.current_period:
-                    self._union_bf_from_file(filename, current=True)
+        # Reinit the BF using the first snapshot
+        if availables_snapshots:
+            # Always read first snapshots before unioning in order
+            # to retinitialize the parameter correctly
+            self._read_snapshot(availables_snapshots[0])
+            # Union the remaining
+            for filename in availables_snapshots[1:]:
+                snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.dat'), "%Y-%m-%d")
+                if snapshot_period <  last_period and not clean_old_snapshot:
+                    continue
+                else:
+                    self._union_bf_from_file(filename)
+                    if snapshot_period == self.current_period:
+                        self._union_bf_from_file(filename, current=True)
 
-            if snapshot_period < last_period and clean_old_snapshot:
-                os.remove(filename)
-        self.ready = True
+                if snapshot_period < last_period and clean_old_snapshot:
+                    os.remove(filename)
+            self.ready = True
 
     def add_rebuild(self, key, update_current=True):
         super(DailyTemporalBloomFilter, self).add(key, update_current)

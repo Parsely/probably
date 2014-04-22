@@ -68,20 +68,45 @@ cdef class BloomFilter:
     def _set_error_rate(self, error_rate):
         self.error_rate = error_rate
 
+    @property
+    def _snapshot_header(self):
+        return self.capacity, self.error_rate
+
     def _save_snapshot(self,  char* filename):
+        """Save bitarray into a simple binary file."""
         f = fopen(filename, 'w')
+        # Write the header
+        fwrite(&(self.capacity), sizeof(unsigned long long), 1, f)
+        fwrite(&(self.error_rate), sizeof(double), 1, f)
+        # Write the data
         fwrite(self.bitarray, 1, self.nbr_bytes, f)
         fclose(f)
 
     def _read_snapshot(self, char* filename):
+        """Restore the BF using a binary dump.
+
+        This method will overwrite the BF parameters with those in the file's header.
+        """
         f = fopen(filename, "r")
+        fread(&(self.capacity), sizeof(unsigned long long), 1, f)
+        fread(&(self.error_rate), sizeof(double), 1, f)
+        self._initialize_parameters()
+        self.bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
         fread(self.bitarray, 1, self.nbr_bytes, f)
         fclose(f)
 
     def _union_bf_from_file(self, char* filename):
+        """Union the current BF with other BF saved in snapshot.
+
+        Always read first snapshot using _read_snapshot() before unioning in order
+        to retinitialize the parameters correctly.
+        """
+        f = fopen(filename, "r")
+        fread(&(self.capacity), sizeof(unsigned long long), 1, f)
+        fread(&(self.error_rate), sizeof(double), 1, f)
+        self._initialize_parameters()
         temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
 
-        f = fopen(filename, "r")
         fread(temp_bitarray, 1, self.nbr_bytes, f)
         fclose(f)
 
@@ -251,7 +276,12 @@ cdef class DailyTemporalBase(BloomFilter):
         return self._check_or_add_all(value, should_add=1, update_current=1) == 1
 
     def _save_snapshot(self,  char* filename, current=True):
+        """Save bitarray into a simple binary file."""
         f = fopen(filename, 'w')
+        # Write the header
+        fwrite(&(self.capacity), sizeof(unsigned long long), 1, f)
+        fwrite(&(self.error_rate), sizeof(double), 1, f)
+        # Write the data
         if current:
             fwrite(self.current_day_bitarray, 1, self.nbr_bytes, f)
         else:
@@ -259,9 +289,12 @@ cdef class DailyTemporalBase(BloomFilter):
         fclose(f)
 
     def _union_bf_from_file(self, char* filename, current=False):
+        f = fopen(filename, "r")
+        fread(&(self.capacity), sizeof(unsigned long long), 1, f)
+        fread(&(self.error_rate), sizeof(double), 1, f)
+        self._initialize_parameters()
         temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
 
-        f = fopen(filename, "r")
         fread(temp_bitarray, 1, self.nbr_bytes, f)
         fclose(f)
 
@@ -269,6 +302,7 @@ cdef class DailyTemporalBase(BloomFilter):
             self._bitarray_or(self.current_day_bitarray, temp_bitarray)
         else:
             self._bitarray_or(self.bitarray, temp_bitarray)
+
         PyMem_Free(temp_bitarray)
 
     @cython.wraparound(False)
