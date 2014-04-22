@@ -55,10 +55,11 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             s.create_column_family(self.keyspace, self.cassandra_columns_family)
         self.columnfamily = ColumnFamily(self.cassandra_session, self.cassandra_columns_family)
 
-    def archive_bf_key(self, bf_key):
+    def archive_bf_key(self, bf_key, current_period_hour=None):
         self.uncommited_keys.append(bf_key)
         if len(self.uncommited_keys) >= self.commit_batch:
-            current_period_hour = dt.datetime.now().strftime('%Y-%m-%d:%H')
+            if not current_period_hour:
+                current_period_hour = dt.datetime.now().strftime('%Y-%m-%d:%H')
             self.columnfamily.insert('%s_%s' % (self.bf_name, current_period_hour), {k:'' for k in self.uncommited_keys})
             self.uncommited_keys = []
 
@@ -123,9 +124,10 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             update_current = day == self.current_period
 
             for k in multi_rows_itr(rows_content):
-                self.add_rebuild(k, update_current)
+                self.add_rebuild(k)
 
-            if rebuild_snapshot:
+            if rebuild_snapshot and rows_content:
+                print rows_content.keys()
                 self.save_snaphot(override_period=day)
 
             if not update_current:
@@ -144,7 +146,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         # Reinit the BF using the first snapshot
         if availables_snapshots:
             # Always read first snapshots before unioning in order
-            # to retinitialize the parameter correctly
+            # to retinitialize the parameters correctly
             self._read_snapshot(availables_snapshots[0])
             # Union the remaining
             for filename in availables_snapshots[1:]:
@@ -160,8 +162,8 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                     os.remove(filename)
             self.ready = True
 
-    def add_rebuild(self, key, update_current=True):
-        super(DailyTemporalBloomFilter, self).add(key, update_current)
+    def add_rebuild(self, key):
+        super(DailyTemporalBloomFilter, self).add(key)
 
     def add(self, key_string):
         if isinstance(key_string, unicode):
