@@ -144,7 +144,6 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                     self.add_rebuild(k)
 
                 if rebuild_snapshot and rows_content:
-                    print rows_content.keys()
                     self.save_snaphot(override_period=day)
 
                 if not update_current:
@@ -153,7 +152,6 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             period_str = period.strftime('%Y-%m-%d:%H')
             rows = ["%s_%s" % (self.bf_name, period_str)]
             rows_content = self.columnfamily.multiget(rows, column_count=1E6)
-            print rows_content
             for k in multi_rows_itr(rows_content):
                 self.add_rebuild(k)
 
