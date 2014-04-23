@@ -305,6 +305,9 @@ cdef class DailyTemporalBase(BloomFilter):
 
         PyMem_Free(temp_bitarray)
 
+    def union_current_day(self, DailyTemporalBase other):
+        self._bitarray_or(self.bitarray, other.current_day_bitarray)
+
     @cython.wraparound(False)
     @cython.boundscheck(False)
     @cython.cdivision(True)

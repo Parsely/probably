@@ -48,7 +48,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.snapshot_path = snapshot_path
 
     def ensure_cassandra_cf(self):
-        s = SystemManager()
+        s = SystemManager(self.cassandra_session.server_list[0])
         if self.keyspace not in s.list_keyspaces():
             s.create_keyspace(self.keyspace, SIMPLE_STRATEGY, {'replication_factor': '1'})
         if self.cassandra_columns_family not in s.get_keyspace_column_families(self.keyspace):
