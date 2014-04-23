@@ -42,14 +42,24 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.cassandra_columns_family = "temporal_bf"
         self.keyspace = 'parsely'
         self.uncommited_keys = []
-        self.commit_batch = 1000
+        self.commit_batch_size = 1000
+        self.commit_period = 5.0
+        self.next_cassandra_commit = 0
         self.columnfamily = None
         self.ensure_cassandra_cf()
         self.snapshot_path = snapshot_path
+        self.snapshot_to_load = None
+        self.ready = False
+        self.warm_period = None
+        self.next_snapshot_load = time.time()
 
     @property
     def capacity(self):
         return self._get_capacity()
+
+    @property
+    def error_rate(self):
+        return self._get_error_rate()
 
     def ensure_cassandra_cf(self):
         s = SystemManager(self.cassandra_session.server_list[0])
@@ -61,11 +71,12 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
 
     def archive_bf_key(self, bf_key, current_period_hour=None):
         self.uncommited_keys.append(bf_key)
-        if len(self.uncommited_keys) >= self.commit_batch:
+        if (len(self.uncommited_keys) >= self.commit_batch_size) or (time.time() > self.next_cassandra_commit):
             if not current_period_hour:
                 current_period_hour = dt.datetime.now().strftime('%Y-%m-%d:%H')
             self.columnfamily.insert('%s_%s' % (self.bf_name, current_period_hour), {k:'' for k in self.uncommited_keys})
             self.uncommited_keys = []
+            self.next_cassandra_commit = time.time() + self.commit_period
 
     def _hour_range(self, start, end, reverse=False, inclusive=True):
         """Generator that gives us all the hours between a start and end datetime
@@ -106,36 +117,47 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             except:
                 pass
 
-    def rebuild_from_archive(self, rebuild_snapshot=True):
-        """Rebuild the BF using the archived items"""
-        self.initialize_bitarray()
+    def rebuild_from_archive(self, rebuild_snapshot=True, period=None):
+        """Rebuild the BF using the archived items.
 
-        #if rebuild_snapshot:
-        #    self.delete_snapshots()
+        :rebuild_snapshot: Regenerate the snapshot on disk.
+        :period: Do a partial rebuild using a single period (typically the last hours).
+        """
 
         def multi_rows_itr(rows):
             for row in rows.values():
                 for k in row.keys():
                     yield k
 
-        last_period = self.current_period - dt.timedelta(days=self.expiration-1)
-        hours = self._hour_range(last_period, dt.datetime.now())
-        days = self._day_range(last_period, dt.datetime.now())
-        rows = []
-        for i,day in enumerate(days):
-            rows = ["%s_%s:%s" % (self.bf_name, day.strftime('%Y-%m-%d'), hour_str) for hour_str in ["%02d" % i for i in range(24)]]
-            rows_content = self.columnfamily.multiget(rows, column_count=1E6)
-            update_current = day == self.current_period
+        if not period:
+            self.initialize_bitarray()
+            last_period = self.current_period - dt.timedelta(days=self.expiration-1)
+            hours = self._hour_range(last_period, dt.datetime.now())
+            days = self._day_range(last_period, dt.datetime.now())
+            rows = []
+            for i,day in enumerate(days):
+                rows = ["%s_%s:%s" % (self.bf_name, day.strftime('%Y-%m-%d'), hour_str) for hour_str in ["%02d" % i for i in range(24)]]
+                rows_content = self.columnfamily.multiget(rows, column_count=1E6)
+                update_current = day == self.current_period
 
+                for k in multi_rows_itr(rows_content):
+                    self.add_rebuild(k)
+
+                if rebuild_snapshot and rows_content:
+                    print rows_content.keys()
+                    self.save_snaphot(override_period=day)
+
+                if not update_current:
+                    self.initialize_current_day_bitarray()
+        else:
+            period_str = period.strftime('%Y-%m-%d:%H')
+            rows = ["%s_%s" % (self.bf_name, period_str)]
+            rows_content = self.columnfamily.multiget(rows, column_count=1E6)
+            print rows_content
             for k in multi_rows_itr(rows_content):
                 self.add_rebuild(k)
 
-            if rebuild_snapshot and rows_content:
-                print rows_content.keys()
-                self.save_snaphot(override_period=day)
 
-            if not update_current:
-                self.initialize_current_day_bitarray()
 
     def restore_from_disk(self, clean_old_snapshot=False):
         """Restore the state of the BF using previous snapshots.
@@ -165,6 +187,41 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                 if snapshot_period < last_period and clean_old_snapshot:
                     os.remove(filename)
             self.ready = True
+        return self.ready
+
+    def compute_refresh_period(self):
+        self.warm_period =  (60 * 60 * 24) // (self.expiration-2)
+
+    def _should_warm(self):
+        return time.time() >= self.next_snapshot_load
+
+    def warm(self, jittering_ratio=0.2):
+        """Progressively load the previous snapshot during the day.
+
+        Loading all the snapshots at once can takes a substantial amount of time. This method, if called
+        periodically during the day will progressively load those snapshots one by one. Because many workers are
+        going to use this method at the same time, we add a jittering to the period between load to avoid
+        hammering the disk at the same time.
+        """
+        if self.snapshot_to_load == None:
+            last_period = self.current_period - dt.timedelta(days=self.expiration-1)
+            self.compute_refresh_period()
+            self.snapshot_to_load = []
+            base_filename = "%s/%s_%s_*.dat" % (self.snapshot_path, self.bf_name, self.expiration)
+            availables_snapshots = glob.glob(base_filename)
+            for filename in availables_snapshots:
+                snapshot_period = dt.datetime.strptime(filename.split('_')[-1].strip('.dat'), "%Y-%m-%d")
+                if snapshot_period >= last_period:
+                    self.snapshot_to_load.append(filename)
+                    self.ready = False
+
+        if self.snapshot_to_load and self._should_warm():
+            filename = self.snapshot_to_load.pop()
+            self._union_bf_from_file(filename)
+            jittering = self.warm_period * (np.random.random()-0.5) * jittering_ratio
+            self.next_snapshot_load = time.time() + self.warm_period + jittering
+            if not self.snapshot_to_load:
+                self.ready = True
 
     def add_rebuild(self, key):
         super(DailyTemporalBloomFilter, self).add(key)
