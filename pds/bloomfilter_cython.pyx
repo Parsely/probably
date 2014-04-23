@@ -65,6 +65,9 @@ cdef class BloomFilter:
     def _set_capacity(self, capacity):
         self.capacity = capacity
 
+    def _get_capacity(self):
+        return self.capacity
+
     def _set_error_rate(self, error_rate):
         self.error_rate = error_rate
 
