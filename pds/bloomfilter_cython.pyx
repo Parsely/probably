@@ -71,6 +71,9 @@ cdef class BloomFilter:
     def _set_error_rate(self, error_rate):
         self.error_rate = error_rate
 
+    def _get_error_rate(self):
+        return self.error_rate
+
     @property
     def _snapshot_header(self):
         return self.capacity, self.error_rate
