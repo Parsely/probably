@@ -239,7 +239,9 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self._set_capacity(new_capacity or self.capacity)
         self._set_error_rate(new_error_rate or self.error_rate)
         self._initialize_parameters()
+        self._allocate_bitarrays()
         self.initialize_bitarray()
+        self.initialize_current_day_bitarray()
         self.rebuild_from_archive(rebuild_snapshot=True)
 
     def initialize_period(self, period=None):

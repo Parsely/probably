@@ -247,9 +247,11 @@ cdef class DailyTemporalBase(BloomFilter):
     def __cinit__(self, capacity, error_rate):
         self.capacity = capacity
         self.error_rate = error_rate
-        self._initialize_parameters()
         self._count = 0
+        self._initialize_parameters()
+        self._allocate_bitarrays()
 
+    def _allocate_bitarrays(self):
         self.current_day_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
         self.bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
         if not (self.bitarray and self.current_day_bitarray):
