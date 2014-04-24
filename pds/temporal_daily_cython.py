@@ -69,12 +69,18 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             s.create_column_family(self.keyspace, self.cassandra_columns_family)
         self.columnfamily = ColumnFamily(self.cassandra_session, self.cassandra_columns_family)
 
-    def archive_bf_key(self, bf_key, current_period_hour=None):
+    def archive_bf_key(self, bf_key, period=None):
+        """Store the key in Cassandra.
+
+        If an explicit period is provided, the key will be store in this period bucket.
+        For effiency's sake, we always store the uncommited keys into a single bucket determined
+        by the period of last key.
+        """
         self.uncommited_keys.append(bf_key)
         if (len(self.uncommited_keys) >= self.commit_batch_size) or (time.time() > self.next_cassandra_commit):
-            if not current_period_hour:
-                current_period_hour = dt.datetime.now().strftime('%Y-%m-%d:%H')
-            self.columnfamily.insert('%s_%s' % (self.bf_name, current_period_hour), {k:'' for k in self.uncommited_keys})
+            if not period:
+                period = dt.datetime.now().strftime('%Y-%m-%d:%H')
+            self.columnfamily.insert('%s_%s' % (self.bf_name, period), {k:'' for k in self.uncommited_keys})
             self.uncommited_keys = []
             self.next_cassandra_commit = time.time() + self.commit_period
 
@@ -224,13 +230,13 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
     def add_rebuild(self, key):
         super(DailyTemporalBloomFilter, self).add(key)
 
-    def add(self, key_string):
+    def add(self, key_string, period=None):
         if isinstance(key_string, unicode):
             key = key_string.encode('utf8')
         else:
             key = key_string
 
-        self.archive_bf_key(key)
+        self.archive_bf_key(key, period)
         result = super(DailyTemporalBloomFilter, self).add(key)
 
         return result
