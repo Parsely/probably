@@ -9,6 +9,7 @@ import zlib
 import bitarray
 import numpy as np
 
+from collections import defaultdict
 from bloomfilter_cython import BloomFilter, DailyTemporalBase
 from pycassa import NotFoundException
 from pycassa.pool import ConnectionPool
@@ -42,6 +43,8 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.cassandra_columns_family = "temporal_bf"
         self.keyspace = 'parsely'
         self.uncommited_keys = []
+        self.uncommited_keys_per_bucket = defaultdict(list)
+        self.uncommited_count = 0
         self.commit_batch_size = 1000
         self.commit_period = 5.0
         self.next_cassandra_commit = 0
@@ -69,12 +72,29 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             s.create_column_family(self.keyspace, self.cassandra_columns_family)
         self.columnfamily = ColumnFamily(self.cassandra_session, self.cassandra_columns_family)
 
+    def archive_bf_key_strict(self, bf_key, period=None):
+        """Store the key in Cassandra.
+
+        If an explicit period is provided, the key will be store in this period bucket.
+        Strict version, 5-6X slower.
+        """
+        if not period:
+            period = dt.datetime.now()
+        self.uncommited_keys_per_bucket[period.strftime('%Y-%m-%d:%H')].append(bf_key)
+        self.uncommited_count += 1
+        if (self.uncommited_count >= self.commit_batch_size) or (time.time() > self.next_cassandra_commit):
+            for period, keys in self.uncommited_keys_per_bucket.iteritems():
+                self.columnfamily.insert('%s_%s' % (self.bf_name, period), {k:'' for k in keys})
+                self.next_cassandra_commit = time.time() + self.commit_period
+            self.uncommited_keys_per_bucket = defaultdict(list)
+            self.uncommited_count = 0
+
     def archive_bf_key(self, bf_key, period=None):
         """Store the key in Cassandra.
 
         If an explicit period is provided, the key will be store in this period bucket.
         For effiency's sake, we always store the uncommited keys into a single bucket determined
-        by the period of last key.
+        by the period of last key. To avoid this optimization, use archive_bf_key_strict.
         """
         self.uncommited_keys.append(bf_key)
         if (len(self.uncommited_keys) >= self.commit_batch_size) or (time.time() > self.next_cassandra_commit):
