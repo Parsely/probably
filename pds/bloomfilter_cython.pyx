@@ -84,6 +84,8 @@ cdef class BloomFilter:
         # Write the header
         fwrite(&(self.capacity), sizeof(unsigned long long), 1, f)
         fwrite(&(self.error_rate), sizeof(double), 1, f)
+        fwrite(&(self._count), sizeof(unsigned long long), 1, f)
+
         # Write the data
         fwrite(self.bitarray, 1, self.nbr_bytes, f)
         fclose(f)
@@ -96,6 +98,8 @@ cdef class BloomFilter:
         f = fopen(filename, "r")
         fread(&(self.capacity), sizeof(unsigned long long), 1, f)
         fread(&(self.error_rate), sizeof(double), 1, f)
+        fread(&(self._count), sizeof(unsigned long long), 1, f)
+
         self._initialize_parameters()
         self.bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
         fread(self.bitarray, 1, self.nbr_bytes, f)
@@ -110,6 +114,8 @@ cdef class BloomFilter:
         f = fopen(filename, "r")
         fread(&(self.capacity), sizeof(unsigned long long), 1, f)
         fread(&(self.error_rate), sizeof(double), 1, f)
+        fread(&(self._count), sizeof(unsigned long long), 1, f)
+
         self._initialize_parameters()
         temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
 
@@ -159,6 +165,24 @@ cdef class BloomFilter:
 
     def set_bit(self, unsigned long index, int value):
         self._set_bit(index, value)
+
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
+    cdef double _get_nbr_nonzero(self):
+        cdef int nonzero = 0
+        cdef int count = 0
+        for bytepos in range(self.nbr_bytes):
+            val = self.bitarray[bytepos]
+            count = 0
+            while val != 0:
+                val &= val-1
+                count += 1
+            nonzero += count
+        return nonzero
+
+    def get_fillrate(self):
+        return self._get_nbr_nonzero() / self.nbr_bits
 
     @cython.wraparound(False)
     @cython.boundscheck(False)
@@ -287,6 +311,7 @@ cdef class DailyTemporalBase(BloomFilter):
         # Write the header
         fwrite(&(self.capacity), sizeof(unsigned long long), 1, f)
         fwrite(&(self.error_rate), sizeof(double), 1, f)
+        fwrite(&(self._count), sizeof(unsigned long long), 1, f)
         # Write the data
         if current:
             fwrite(self.current_day_bitarray, 1, self.nbr_bytes, f)
@@ -298,6 +323,8 @@ cdef class DailyTemporalBase(BloomFilter):
         f = fopen(filename, "r")
         fread(&(self.capacity), sizeof(unsigned long long), 1, f)
         fread(&(self.error_rate), sizeof(double), 1, f)
+        fread(&(self._count), sizeof(unsigned long long), 1, f)
+
         self._initialize_parameters()
         temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
 
