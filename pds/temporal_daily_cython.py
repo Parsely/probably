@@ -6,7 +6,6 @@ import math
 import time
 import zlib
 
-import bitarray
 import numpy as np
 
 from collections import defaultdict
@@ -52,9 +51,11 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.ensure_cassandra_cf()
         self.snapshot_path = snapshot_path
         self.snapshot_to_load = None
-        self.ready = False
         self.warm_period = None
         self.next_snapshot_load = time.time()
+        self.ready = False
+        self.waiting_for_rebuild = False
+        self.rebuild_hash = None
 
     @property
     def capacity(self):
