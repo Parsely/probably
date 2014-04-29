@@ -1,16 +1,17 @@
 import hashlib
 import numpy as np
+import zlib
 
 from maintenance import maintenance
 from hashfunctions import generate_hashfunctions
 
 class CountdownBloomFilter(object):
-    """ Implementation of a Modified Countdown Bloom Filter. Uses a batched maintenance process instead of a continuous one.
+    """Implementation of a Modified Countdown Bloom Filter. Uses a batched maintenance process instead of a continuous one.
 
-        Sanjuas-Cuxart, Josep, et al. "A lightweight algorithm for traffic filtering over sliding windows."
-        Communications (ICC), 2012 IEEE International Conference on. IEEE, 2012.
+    Sanjuas-Cuxart, Josep, et al. "A lightweight algorithm for traffic filtering over sliding windows."
+    Communications (ICC), 2012 IEEE International Conference on. IEEE, 2012.
 
-        http://www-mobile.ecs.soton.ac.uk/home/conference/ICC2012/symposia/papers/a_lightweight_algorithm_for_traffic_filtering_over_sliding__.pdf
+    http://www-mobile.ecs.soton.ac.uk/home/conference/ICC2012/symposia/papers/a_lightweight_algorithm_for_traffic_filtering_over_sliding__.pdf
     """
 
     def __init__(self, capacity, error_rate=0.001, expiration=60, disable_hard_capacity=False):
@@ -34,33 +35,35 @@ class CountdownBloomFilter(object):
         self.disable_hard_capacity = disable_hard_capacity
 
     def _compute_z(self):
-        """ Compute the unset ratio (exact) """
+        """Compute the unset ratio (exact)."""
         return self.cellarray.nonzero()[0].shape[0] / self.nbr_bits
 
     def _estimate_count(self):
-        """ Update the count number using the estimation of the unset ratio """
+        """Update the count number using the estimation of the unset ratio."""
         if self.estimate_z == 0:
             self.estimate_z = (1.0 / self.nbr_bits)
         self.estimate_z = min(self.estimate_z, 0.999999)
         self.count = int(-(self.nbr_bits / self.nbr_slices) * np.log(1 - self.estimate_z))
 
     def expiration_maintenance(self):
-        """ Decrement cell value if not zero
-            This maintenance process need to executed each self.compute_refresh_time()
+        """Decrement cell value if not zero.
+
+        This maintenance process need to executed each self.compute_refresh_time().
         """
         if self.cellarray[self.refresh_head] != 0:
             self.cellarray[self.refresh_head] -= 1
         self.refresh_head = (self.refresh_head + 1) % self.nbr_bits
 
     def batched_expiration_maintenance_dev(self, elapsed_time):
-        """ Batched version of expiration_maintenance() """
+        """Batched version of expiration_maintenance()."""
         num_iterations = self.num_batched_maintenance(elapsed_time)
         for i in range(num_iterations):
             self.expiration_maintenance()
 
     def batched_expiration_maintenance(self, elapsed_time):
-        """ Batched version of expiration_maintenance()
-            Cython version
+        """Batched version of expiration_maintenance().
+
+        Cython version
         """
         num_iterations = self.num_batched_maintenance(elapsed_time)
         self.refresh_head, nonzero = maintenance(self.cellarray, self.nbr_bits, num_iterations, self.refresh_head)
@@ -71,7 +74,7 @@ class CountdownBloomFilter(object):
         return processed_interval
 
     def compute_refresh_time(self):
-        """ Compute the refresh period for the given expiration delay """
+        """Compute the refresh period for the given expiration delay."""
         if self.z == 0:
             self.z = 1E-10
         s = float(self.expiration) * (1.0/(self.nbr_bits)) * (1.0/(self.counter_init - 1 + (1.0/(self.z * (self.nbr_slices + 1)))))
@@ -93,7 +96,7 @@ class CountdownBloomFilter(object):
         return True
 
     def __len__(self):
-        """ Return the number of keys stored by this bloom filter. """
+        """Return the number of keys stored by this bloom filter."""
         return self.count
 
     def add(self, key, skip_check=False):
@@ -112,3 +115,15 @@ class CountdownBloomFilter(object):
             offset += self.bits_per_slice
         self.count += 1
         return False
+
+    def to_binary(self, compression=True):
+        if compression:
+            return 'compressed_' + zlib.compress(self.cellarray.dumps(),1)
+        else:
+            return self.cellarray.dumps()
+
+    def from_binary(self, dump):
+        if dump.startswith('compressed_'):
+            self.cellarray = np.loads(zlib.decompress(dump[11:]))
+        else:
+            self.cellarray = np.loads(dumps)
