@@ -184,6 +184,16 @@ cdef class BloomFilter:
     def get_fillrate(self):
         return self._get_nbr_nonzero() / self.nbr_bits
 
+    def cardinality_estimation(self):
+        """Estimate the cardinality of the filter.
+
+        We can have an estimation of the cardinality using the fillrate:
+        Swamidass and Baldi (2007)
+        http://www.igb.uci.edu/~pfbaldi/publications/journals/2007/ci600526a.pdf
+        """
+        cardinality = float(self.nbr_bits) * log(1.0 - self.get_fillrate()) / self.nbr_slices
+        return -cardinality
+
     @cython.wraparound(False)
     @cython.boundscheck(False)
     @cython.cdivision(True)
