@@ -44,8 +44,8 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.uncommited_keys = []
         self.uncommited_keys_per_bucket = defaultdict(list)
         self.uncommited_count = 0
-        self.commit_batch_size = 1000
-        self.commit_period = 5.0
+        self.commit_batch_size = 10
+        self.commit_period = 1.0
         self.next_cassandra_commit = 0
         self.columnfamily = None
         self.ensure_cassandra_cf()
@@ -54,7 +54,6 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.warm_period = None
         self.next_snapshot_load = time.time()
         self.ready = False
-        self.waiting_for_rebuild = False
         self.rebuild_hash = None
 
     @property
@@ -100,8 +99,8 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.uncommited_keys.append(bf_key)
         if (len(self.uncommited_keys) >= self.commit_batch_size) or (time.time() > self.next_cassandra_commit):
             if not period:
-                period = dt.datetime.now().strftime('%Y-%m-%d:%H')
-            self.columnfamily.insert('%s_%s' % (self.bf_name, period), {k:'' for k in self.uncommited_keys})
+                period = dt.datetime.now()
+            self.columnfamily.insert('%s_%s' % (self.bf_name, period.strftime('%Y-%m-%d:%H')), {k:'' for k in self.uncommited_keys})
             self.uncommited_keys = []
             self.next_cassandra_commit = time.time() + self.commit_period
 
@@ -212,6 +211,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                 if snapshot_period < last_period and clean_old_snapshot:
                     os.remove(filename)
             self.ready = True
+            self.rebuild_hash = None
         return self.ready
 
     def compute_refresh_period(self):
