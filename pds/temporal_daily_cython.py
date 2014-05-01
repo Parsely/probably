@@ -44,8 +44,8 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.uncommited_keys = []
         self.uncommited_keys_per_bucket = defaultdict(list)
         self.uncommited_count = 0
-        self.commit_batch_size = 10
-        self.commit_period = 1.0
+        self.commit_batch_size = 1000
+        self.commit_period = 5.0
         self.next_cassandra_commit = 0
         self.columnfamily = None
         self.ensure_cassandra_cf()
