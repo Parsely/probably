@@ -271,7 +271,6 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                 self.ready = True
         elif self.snapshot_to_load:
             for filename in self.snapshot_to_load:
-                print filename
                 self._union_bf_from_file(filename)
             self.snapshot_to_load = []
 
