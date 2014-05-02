@@ -273,7 +273,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             for filename in self.snapshot_to_load:
                 self._union_bf_from_file(filename)
             self.snapshot_to_load = []
-
+            self.ready = True
 
     def add_rebuild(self, key):
         super(DailyTemporalBloomFilter, self).add(key)
