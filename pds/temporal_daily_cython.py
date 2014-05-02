@@ -55,6 +55,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.next_snapshot_load = time.time()
         self.ready = False
         self.rebuild_hash = None
+        self.initialized_at = time.time()
 
     @property
     def capacity(self):
@@ -103,6 +104,9 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             self.columnfamily.insert('%s_%s' % (self.bf_name, period.strftime('%Y-%m-%d:%H')), {k:'' for k in self.uncommited_keys})
             self.uncommited_keys = []
             self.next_cassandra_commit = time.time() + self.commit_period
+
+    def get_age(self):
+        return time.time() - self.initialized_at
 
     def _hour_range(self, start, end, reverse=False, inclusive=True):
         """Generator that gives us all the hours between a start and end datetime
