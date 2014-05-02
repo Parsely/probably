@@ -55,6 +55,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.next_snapshot_load = time.time()
         self.ready = False
         self.rebuild_hash = None
+        self.hold_warming = False
         self.initialized_at = time.time()
 
     @property
@@ -219,12 +220,26 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         return self.ready
 
     def compute_refresh_period(self):
-        self.warm_period =  (60 * 60 * 24) // (self.expiration-2)
+        if not self.snapshot_to_load:
+            return
+        now = dt.datetime.utcnow()
+        remaining_time = dt.datetime(now.year, now.month, now.day, 23, 59, 59) - now
+        self.warm_period = remaining_time.seconds // (len(self.snapshot_to_load) + 2)
 
     def _should_warm(self):
-        return time.time() >= self.next_snapshot_load
+        return (time.time() >= self.next_snapshot_load) and not self.hold_warming
 
-    def warm(self, jittering_ratio=0.2):
+    def set_rebuild_hash(self, rebuild_hash):
+        self.rebuild_hash = rebuild_hash
+        # reset warming
+        self.snapshot_to_load = None
+        self.hold_warming = True
+
+    def reset_rebuild_hash(self):
+        self.rebuild_hash = None
+        self.hold_warming = False
+
+    def warm(self, jittering_ratio=0.2, force_all=False):
         """Progressively load the previous snapshot during the day.
 
         Loading all the snapshots at once can takes a substantial amount of time. This method, if called
@@ -232,9 +247,11 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         going to use this method at the same time, we add a jittering to the period between load to avoid
         hammering the disk at the same time.
         """
+        if not self._should_warm():
+            return
+
         if self.snapshot_to_load == None:
             last_period = self.current_period - dt.timedelta(days=self.expiration-1)
-            self.compute_refresh_period()
             self.snapshot_to_load = []
             base_filename = "%s/%s_%s_*.dat" % (self.snapshot_path, self.bf_name, self.expiration)
             availables_snapshots = glob.glob(base_filename)
@@ -243,14 +260,21 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                 if snapshot_period >= last_period:
                     self.snapshot_to_load.append(filename)
                     self.ready = False
+            self.compute_refresh_period()
 
-        if self.snapshot_to_load and self._should_warm():
+        if self.snapshot_to_load and not force_all:
             filename = self.snapshot_to_load.pop()
             self._union_bf_from_file(filename)
             jittering = self.warm_period * (np.random.random()-0.5) * jittering_ratio
             self.next_snapshot_load = time.time() + self.warm_period + jittering
             if not self.snapshot_to_load:
                 self.ready = True
+        elif self.snapshot_to_load:
+            for filename in self.snapshot_to_load:
+                print filename
+                self._union_bf_from_file(filename)
+            self.snapshot_to_load = []
+
 
     def add_rebuild(self, key):
         super(DailyTemporalBloomFilter, self).add(key)
