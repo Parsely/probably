@@ -155,11 +155,6 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         :period: Do a partial rebuild using a single period (typically the last hours).
         """
 
-        def multi_rows_itr(rows):
-            for row in rows.values():
-                for k in row.keys():
-                    yield k
-
         if not period:
             self.initialize_bitarray()
             last_period = self.current_period - dt.timedelta(days=self.expiration-1)
@@ -167,14 +162,15 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
             days = self._day_range(last_period, dt.datetime.now())
             rows = []
             for i,day in enumerate(days):
+                k = None
                 rows = ["%s_%s:%s" % (self.bf_name, day.strftime('%Y-%m-%d'), hour_str) for hour_str in ["%02d" % i for i in range(24)]]
-                rows_content = self.columnfamily.multiget(rows, column_count=1E6)
                 update_current = day == self.current_period
 
-                for k in multi_rows_itr(rows_content):
-                    self.add_rebuild(k)
+                for row in rows:
+                    for k,v in self.columnfamily.xget(row):
+                        self.add_rebuild(k)
 
-                if rebuild_snapshot and rows_content:
+                if rebuild_snapshot and k:
                     self.save_snaphot(override_period=day)
 
                 if not update_current:
@@ -182,9 +178,9 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         else:
             period_str = period.strftime('%Y-%m-%d:%H')
             rows = ["%s_%s" % (self.bf_name, period_str)]
-            rows_content = self.columnfamily.multiget(rows, column_count=1E6)
-            for k in multi_rows_itr(rows_content):
-                self.add_rebuild(k)
+            for row in rows:
+                for k,v in self.columnfamily.xget(row):
+                    self.add_rebuild(k)
 
 
 
