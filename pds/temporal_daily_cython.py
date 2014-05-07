@@ -205,9 +205,8 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                 if snapshot_period <  last_period and not clean_old_snapshot:
                     continue
                 else:
-                    self._union_bf_from_file(filename)
-                    if snapshot_period == self.current_period:
-                        self._union_bf_from_file(filename, current=True)
+                    current = snapshot_period == self.current_period
+                    self._union_bf_from_file(filename, current)
 
                 if snapshot_period < last_period and clean_old_snapshot:
                     os.remove(filename)
