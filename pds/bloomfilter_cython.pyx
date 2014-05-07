@@ -344,6 +344,9 @@ cdef class DailyTemporalBase(BloomFilter):
         fclose(f)
 
         if current:
+            ### TODO: Dealloc previous array
+            self.current_day_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
+            self._initialize_current_day_bitarray()
             self._bitarray_or(self.current_day_bitarray, temp_bitarray)
         self._bitarray_or(self.bitarray, temp_bitarray)
 
