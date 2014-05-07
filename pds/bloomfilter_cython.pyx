@@ -200,18 +200,18 @@ cdef class BloomFilter:
     cdef int _check_or_add(self, const char *value, int should_add=1):
         cdef int hits = 0
         cdef int val_len = len(value)
-        #cdef unsigned long a
-        #cdef unsigned long b
-        cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
-        cdef unsigned int b = MurmurHash2A(value, val_len, a)
-        cdef unsigned int x
-        cdef unsigned int i
-        cdef unsigned int byte
-        cdef unsigned int mask
+        cdef unsigned long a
+        cdef unsigned long b
+        #cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
+        #cdef unsigned int b = MurmurHash2A(value, val_len, a)
+        cdef unsigned long x
+        cdef unsigned long i
+        cdef unsigned long byte
+        cdef unsigned long mask
         cdef unsigned char c
 
-        #MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
-        #MurmurHash3_x86_32(<char*> value, val_len, a, &b)
+        MurmurHash3_x64_128(<char*> value, val_len, 0x9747b28c, &a)
+        MurmurHash3_x64_128(<char*> value, val_len, a, &b)
 
         for i in range(self.nbr_slices):
             x = (a + i * b) % self.nbr_bits
@@ -275,18 +275,18 @@ cdef class DailyTemporalBase(BloomFilter):
     cdef int _check_or_add_all(self, const char *value, int should_add=1, int update_current=1):
         cdef int hits = 0
         cdef int val_len = len(value)
-        #cdef unsigned long a
-        #cdef unsigned long b
-        cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
-        cdef unsigned int b = MurmurHash2A(value, val_len, a)
-        cdef unsigned int x
-        cdef unsigned int i
-        cdef unsigned int byte
-        cdef unsigned int mask
+        cdef unsigned long a
+        cdef unsigned long b
+        #cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
+        #cdef unsigned int b = MurmurHash2A(value, val_len, a)
+        cdef unsigned long x
+        cdef unsigned long i
+        cdef unsigned long byte
+        cdef unsigned long mask
         cdef unsigned char c
 
-        #MurmurHash3_x86_32(<char*> value, val_len, 0x9747b28c, &a)
-        #MurmurHash3_x86_32(<char*> value, val_len, a, &b)
+        MurmurHash3_x64_128(<char*> value, val_len, 0x9747b28c, &a)
+        MurmurHash3_x64_128(<char*> value, val_len, a, &b)
 
         for i in range(self.nbr_slices):
             x = (a + i * b) % self.nbr_bits
