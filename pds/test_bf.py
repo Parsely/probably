@@ -8,8 +8,9 @@ from bloomfilter_cython import BloomFilter
 
 def test_error_rate(bf, capacity, nbr_experiments):
     # uuid for the poor (faster them uuid.uuid4())
-    random_items = [str(r) + str(time.time()) for r in np.random.randn(2*capacity)]
     for i in range(nbr_experiments):
+        random_items = [str(r) + str(time.time()) for r in np.random.randn(2*capacity)]
+
         bf.initialize_bitarray()
         for item in random_items[:capacity]:
             bf.add(item)
@@ -30,11 +31,34 @@ def test_error_rate(bf, capacity, nbr_experiments):
         yield false_negative_rate, false_positive_rate
 
 
+def test_error_rate_range(bf, capacity, nbr_experiments):
+    for i in range(nbr_experiments):
+        bf.initialize_bitarray()
+        for item in xrange(0,capacity):
+            bf.add(str(item))
+
+        false_positive = 0
+        for item in xrange(capacity,2*capacity):
+            if str(item) in bf:
+                false_positive += 1
+
+        false_positive_rate = float(false_positive) / capacity
+
+        false_negative = 0
+        for item in xrange(0,capacity):
+            if not str(item) in bf:
+                false_negative += 1
+
+        false_negative_rate = float(false_negative) / capacity
+        yield false_negative_rate, false_positive_rate
+
+
 if __name__ == "__main__":
     nbr_experiments = 100
-    capacities = np.logspace(2,5,4)
-    #error_rates = [0.001, 0.01, 0.02, 0.05, 0.1, 0.5]
-    error_rates = [0.02]
+    capacities = np.logspace(3,6,4)
+    #capacities = [500E6]
+    error_rates = [0.001, 0.01, 0.02, 0.05, 0.1, 0.5]
+    #error_rates = [0.01]
     all_results = []
 
     for capacity, error_rate in itertools.product(capacities, error_rates):
