@@ -32,6 +32,11 @@ def test_error_rate(bf, capacity, nbr_experiments):
 
 
 def test_error_rate_range(bf, capacity, nbr_experiments):
+    """Use xrange to generate the unique.
+
+    This test is not a true randomized test. It should use only for testing
+    the BF on really big cardinality without hammering the RAM.
+    """
     for i in range(nbr_experiments):
         bf.initialize_bitarray()
         for item in xrange(0,capacity):
@@ -55,10 +60,8 @@ def test_error_rate_range(bf, capacity, nbr_experiments):
 
 if __name__ == "__main__":
     nbr_experiments = 100
-    capacities = np.logspace(3,6,4)
-    #capacities = [500E6]
-    error_rates = [0.001, 0.01, 0.02, 0.05, 0.1, 0.5]
-    #error_rates = [0.01]
+    capacities = np.logspace(3,5,4)
+    error_rates = [0.001, 0.01, 0.02, 0.05, 0.1]
     all_results = []
 
     for capacity, error_rate in itertools.product(capacities, error_rates):
