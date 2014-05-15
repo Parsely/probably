@@ -80,6 +80,9 @@ class CountdownBloomFilter(object):
     def num_batched_maintenance(self, elapsed_time):
         return int(np.floor(elapsed_time / self.compute_refresh_time()))
 
+    def __nonzero__(self):
+        return True
+
     def __contains__(self, key):
         if not isinstance(key, list):
             hashes = self.make_hashes(key)
