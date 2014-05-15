@@ -83,6 +83,9 @@ class CountdownBloomFilter(object):
     def __nonzero__(self):
         return True
 
+    def __bool__(self):
+        return True
+
     def __contains__(self, key):
         if not isinstance(key, list):
             hashes = self.make_hashes(key)
