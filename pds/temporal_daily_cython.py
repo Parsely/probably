@@ -29,10 +29,10 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
     items of the set are uniformly distributed over time, the avg error will be something like 1.0 / expiration
     """
 
-    def __new__(cls, capacity, error_rate, expiration, name, cassandra_session, snapshot_path='./'):
+    def __new__(cls, capacity, error_rate, expiration, name, cassandra_session, keyspace, snapshot_path='./'):
         return super(DailyTemporalBloomFilter, cls).__new__(cls, capacity=capacity, error_rate=error_rate)
 
-    def __init__(self, capacity, error_rate, expiration, name, cassandra_session, snapshot_path='./'):
+    def __init__(self, capacity, error_rate, expiration, name, cassandra_session, keyspace, snapshot_path='./'):
         filename = ""
         super(DailyTemporalBloomFilter, self).__init__(capacity=capacity, error_rate=error_rate)
         self.bf_name = name
@@ -40,7 +40,7 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
         self.initialize_period()
         self.cassandra_session = cassandra_session
         self.cassandra_columns_family = "temporal_bf"
-        self.keyspace = 'parsely'
+        self.keyspace = keyspace
         self.uncommited_keys = []
         self.uncommited_keys_per_bucket = defaultdict(list)
         self.uncommited_count = 0
