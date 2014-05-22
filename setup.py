@@ -44,7 +44,7 @@ setup(
     zip_safe=False,
     cmdclass={'build_ext':build_ext},
     setup_requires=['numpy'],
-    install_requires=['numpy', 'cython', 'bitarray', 'smhasher'],
+    install_requires=['numpy', 'smhasher', 'cython', 'bitarray'],
     ext_modules = [Extension("maintenance", ["pds/maintenance.c"]),
                    Extension("bloomfilter_cython", ["pds/bloomfilter_cython.c", "pds/MurmurHash2A.c", "pds/MurmurHash3.cpp"]),
 
