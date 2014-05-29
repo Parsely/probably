@@ -170,7 +170,10 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                     for k,v in self.columnfamily.xget(row):
                         self.add_rebuild(k)
 
-                if rebuild_snapshot and k:
+                # Make sure there is some data before saving the snapshot.
+                # We always save the snapshot of the current day to make
+                # sure the BFs properties are in sync.
+                if rebuild_snapshot and (k or update_current):
                     self.save_snaphot(override_period=day)
 
                 if not update_current:
