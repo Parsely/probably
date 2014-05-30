@@ -189,6 +189,13 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                     self.add_rebuild(k)
 
 
+    def drop_all_snapshot(self):
+        """Delete all the snapshots on disk."""
+        base_filename = "%s/%s_%s_*.dat" % (self.snapshot_path, self.bf_name, self.expiration)
+        availables_snapshots = glob.glob(base_filename)
+        for filename in availables_snapshots:
+            os.remove(filename)
+
 
     def restore_from_disk(self, clean_old_snapshot=False):
         """Restore the state of the BF using previous snapshots.
