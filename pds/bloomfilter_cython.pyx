@@ -111,10 +111,17 @@ cdef class BloomFilter:
         Always read first snapshot using _read_snapshot() before unioning in order
         to retinitialize the parameters correctly.
         """
+        cdef unsigned long long new_capacity
+        cdef unsigned long long new_count
+        cdef double new_error_rate
+
         f = fopen(filename, "r")
-        fread(&(self.capacity), sizeof(unsigned long long), 1, f)
-        fread(&(self.error_rate), sizeof(double), 1, f)
-        fread(&(self._count), sizeof(unsigned long long), 1, f)
+        fread(&(new_capacity), sizeof(unsigned long long), 1, f)
+        fread(&(new_error_rate), sizeof(double), 1, f)
+        fread(&(new_count), sizeof(unsigned long long), 1, f)
+
+        if (new_capacity != self.capacity) or (new_error_rate != self.error_rate):
+            return False
 
         self._initialize_parameters()
         temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
@@ -332,17 +339,24 @@ cdef class DailyTemporalBase(BloomFilter):
         fclose(f)
 
     def _union_bf_from_file(self, char* filename, current=False):
+        """Union the bitarray with an other one stored on file.
+
+        Return True if the file was correctly unioned, False otherwise.
+        """
+        cdef unsigned long long new_capacity
+        cdef unsigned long long new_count
+        cdef double new_error_rate
+
         f = fopen(filename, "r")
-        fread(&(self.capacity), sizeof(unsigned long long), 1, f)
-        fread(&(self.error_rate), sizeof(double), 1, f)
-        fread(&(self._count), sizeof(unsigned long long), 1, f)
+        fread(&(new_capacity), sizeof(unsigned long long), 1, f)
+        fread(&(new_error_rate), sizeof(double), 1, f)
+        fread(&(new_count), sizeof(unsigned long long), 1, f)
+
+        if (new_capacity != self.capacity) or (new_error_rate != self.error_rate):
+            return False
 
         self._initialize_parameters()
         temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
-
-        # Check parameters
-        if len(temp_bitarray) != len(self.bitarray):
-            return False
 
         fread(temp_bitarray, 1, self.nbr_bytes, f)
         fclose(f)
