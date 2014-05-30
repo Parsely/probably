@@ -16,6 +16,9 @@ from pycassa.system_manager import SystemManager, SIMPLE_STRATEGY
 from pycassa.columnfamily import ColumnFamily
 
 
+class PDSError(Exception): pass
+
+
 class DailyTemporalBloomFilter(DailyTemporalBase):
     """Long Range Temporal BloomFilter using a daily resolution.
 
@@ -209,8 +212,9 @@ class DailyTemporalBloomFilter(DailyTemporalBase):
                     continue
                 else:
                     current = snapshot_period == self.current_period
-                    self._union_bf_from_file(filename, current=current)
-
+                    result = self._union_bf_from_file(filename, current=current)
+                    if not result:
+                        raise PDSError("Trying to load heterogeneous snapshots")
                 if snapshot_period < last_period and clean_old_snapshot:
                     os.remove(filename)
             self.ready = True

@@ -340,6 +340,10 @@ cdef class DailyTemporalBase(BloomFilter):
         self._initialize_parameters()
         temp_bitarray = <unsigned char*> PyMem_Malloc(self.nbr_bytes * sizeof(unsigned char))
 
+        # Check parameters
+        if len(temp_bitarray) != len(self.bitarray):
+            return False
+
         fread(temp_bitarray, 1, self.nbr_bytes, f)
         fclose(f)
 
@@ -351,6 +355,8 @@ cdef class DailyTemporalBase(BloomFilter):
         self._bitarray_or(self.bitarray, temp_bitarray)
 
         PyMem_Free(temp_bitarray)
+
+        return True
 
     def union_current_day(self, DailyTemporalBase other):
         self._bitarray_or(self.bitarray, other.current_day_bitarray)
