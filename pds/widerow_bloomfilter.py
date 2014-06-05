@@ -30,9 +30,7 @@ class WideRowBloomFilter(DailyTemporalBase):
         self.cassandra_session = cassandra_session
         self.cassandra_columns_family = "widerow_bf"
         self.keyspace = keyspace
-        self.uncommited_keys = []
-        self.uncommited_keys_per_bucket = defaultdict(list)
-        self.uncommited_count = 0
+        self.uncommited_keys = defaultdict(list)
         self.commit_batch_size = 1000
         self.commit_period = 5.0
         self.next_cassandra_commit = 0
@@ -40,6 +38,8 @@ class WideRowBloomFilter(DailyTemporalBase):
         self.ensure_cassandra_cf()
         self.initialized_at = time.time()
         self.ready = False
+        self.sharding_func = None
+        self.partition_ready = defaultdict(lambda: False)
 
     @property
     def capacity(self):
@@ -49,6 +49,15 @@ class WideRowBloomFilter(DailyTemporalBase):
     def error_rate(self):
         return self._get_error_rate()
 
+    def set_sharding_func(self, sharding_func):
+        self.sharding_func = sharding_func
+
+    def _row_key(self, key):
+        """Build a C* row that will partition the set into N fragments.
+        """
+        shard_key = self.sharding_func(key)
+        return shard_key, '%s:%s' % (self.bf_name, shard_key)
+
     def ensure_cassandra_cf(self):
         s = SystemManager(self.cassandra_session.server_list[0])
         if self.keyspace not in s.list_keyspaces():
@@ -57,17 +66,18 @@ class WideRowBloomFilter(DailyTemporalBase):
             s.create_column_family(self.keyspace, self.cassandra_columns_family)
         self.columnfamily = ColumnFamily(self.cassandra_session, self.cassandra_columns_family)
 
-    def rebuild_from_archive(self):
-        for k,v in self.columnfamily.xget(self.bf_name):
+    def rebuild_from_archive(self, shard_key):
+        for k,v in self.columnfamily.xget('%s:%s' % (self.bf_name, shard_key)):
             self.add_rebuild(k)
+        self.partition_ready[shard_key] = True
 
     def add_rebuild(self, key):
         super(WideRowBloomFilter, self).add(key)
 
     def add(self, key_string, timestamp=None):
-        if not self.ready:
-            self.rebuild_from_archive()
-            self.ready = True
+        shard_key = self.sharding_func(key_string)
+        if not self.partition_ready[shard_key]:
+            self.rebuild_from_archive(shard_key)
 
         if isinstance(key_string, unicode):
             key = key_string.encode('utf8')
@@ -81,15 +91,6 @@ class WideRowBloomFilter(DailyTemporalBase):
         result = super(WideRowBloomFilter, self).add(key)
 
         return result
-
-    def resize(self, new_capacity=None, new_error_rate=None):
-        self._set_capacity(new_capacity or self.capacity)
-        self._set_error_rate(new_error_rate or self.error_rate)
-        self._initialize_parameters()
-        self._allocate_bitarrays()
-        self.initialize_bitarray()
-        self.initialize_current_day_bitarray()
-        self.rebuild_from_archive()
 
     def initialize_period(self, period=None):
         """Initialize the period of BF.
@@ -117,11 +118,14 @@ class WideRowBloomFilter(DailyTemporalBase):
         The batching insert here is using batch_insert() instead of a single multi-column insert()
         like in the other schema which is much less efficient. Anyway... this is just a test.
         """
-        self.uncommited_keys.append((key, ts))
+        shard_key, row_key = self._row_key(key)
+        self.uncommited_keys[shard_key].append((key, ts))
         if (time.time() > self.next_cassandra_commit or len(self.uncommited_keys) >= self.commit_batch_size):
-            ttl = self._get_ttl(self.uncommited_keys[0][1]) ### Here we pick a single ttl for the batch
+            ttl = self._get_ttl(ts) ### Here we pick a single ttl for the batch
             if ttl > 0:
-                batch = {k:'' for k,ts in self.uncommited_keys}
-                self.columnfamily.insert(self.bf_name, batch, ttl=ttl)
-            self.uncommited_keys = []
+                batch = {'%s:%s' % (self.bf_name, shard_key): {k:'' for k,ts in self.uncommited_keys[shard_key]}
+                            for shard_key in self.uncommited_keys.keys()}
+                self.columnfamily.batch_insert(batch, ttl=ttl)
+            self.uncommited_keys = defaultdict(list)
             self.next_cassandra_commit = time.time() + self.commit_period
+
