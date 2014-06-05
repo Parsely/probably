@@ -47,7 +47,11 @@ class WideRowBloomFilter(object):
     def capacity(self):
         return self.bf.capacity
 
+    def current_row_count(self):
+        return self.columnfamily.get_count(self.bf_name)
+
     def initialize_bf(self):
+        self.initial_capacity = max(int(self.current_row_count() * 1.5), self.initial_capacity)
         self.bf = ScalableBloomFilter(self.initial_capacity, self.error_rate)
 
     def ensure_cassandra_cf(self):
