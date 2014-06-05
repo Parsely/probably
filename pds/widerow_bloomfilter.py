@@ -117,11 +117,11 @@ class WideRowBloomFilter(DailyTemporalBase):
 class ShardedWideRowBloomFilter(DailyTemporalBase):
 
     def __new__(cls, capacity, error_rate, expiration, name, cassandra_session, keyspace):
-        return super(WideRowBloomFilter, cls).__new__(cls, capacity=capacity, error_rate=error_rate)
+        return super(ShardedWideRowBloomFilter, cls).__new__(cls, capacity=capacity, error_rate=error_rate)
 
     def __init__(self, capacity, error_rate, expiration, name, cassandra_session, keyspace):
         filename = ""
-        super(WideRowBloomFilter, self).__init__(capacity=capacity, error_rate=error_rate)
+        super(ShardedWideRowBloomFilter, self).__init__(capacity=capacity, error_rate=error_rate)
         self.bf_name = name
         self.expiration = expiration
         self.initialize_period()
@@ -170,7 +170,7 @@ class ShardedWideRowBloomFilter(DailyTemporalBase):
         self.partition_ready[shard_key] = True
 
     def add_rebuild(self, key):
-        super(WideRowBloomFilter, self).add(key)
+        super(ShardedWideRowBloomFilter, self).add(key)
 
     def add(self, key_string, timestamp=None):
         shard_key = self.sharding_func(key_string)
@@ -186,7 +186,7 @@ class ShardedWideRowBloomFilter(DailyTemporalBase):
             timestamp = time.time()
 
         self.archive_bf_key(key, timestamp)
-        result = super(WideRowBloomFilter, self).add(key)
+        result = super(ShardedWideRowBloomFilter, self).add(key)
 
         return result
 
