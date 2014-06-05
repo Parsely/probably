@@ -7,6 +7,7 @@ import numpy as np
 
 from collections import defaultdict
 from bloomfilter_cython import BloomFilter, DailyTemporalBase
+from scalable_bloomfilter import ScalableBloomFilter
 from pycassa import NotFoundException
 from pycassa.pool import ConnectionPool
 from pycassa.system_manager import SystemManager, SIMPLE_STRATEGY
@@ -16,14 +17,12 @@ from pycassa.columnfamily import ColumnFamily
 class PDSError(Exception): pass
 
 
-class WideRowBloomFilter(DailyTemporalBase):
+class WideRowBloomFilter(object):
 
     def __new__(cls, capacity, error_rate, expiration, name, cassandra_session, keyspace):
         return super(WideRowBloomFilter, cls).__new__(cls, capacity=capacity, error_rate=error_rate)
 
     def __init__(self, capacity, error_rate, expiration, name, cassandra_session, keyspace):
-        filename = ""
-        super(WideRowBloomFilter, self).__init__(capacity=capacity, error_rate=error_rate)
         self.bf_name = name
         self.expiration = expiration
         self.initialize_period()
@@ -37,16 +36,19 @@ class WideRowBloomFilter(DailyTemporalBase):
         self.next_cassandra_commit = 0
         self.columnfamily = None
         self.ensure_cassandra_cf()
+        self.initial_capacity = capacity
+        self.error_rate = error_rate
+        self.bf = None
+        self.initialize_bf()
         self.initialized_at = time.time()
         self.ready = False
 
     @property
     def capacity(self):
-        return self._get_capacity()
+        return self.bf.capacity
 
-    @property
-    def error_rate(self):
-        return self._get_error_rate()
+    def initialize_bf(self):
+        self.bf = ScalableBloomFilter(self.initial_capacity, self.error_rate)
 
     def ensure_cassandra_cf(self):
         s = SystemManager(self.cassandra_session.server_list[0])
@@ -57,11 +59,9 @@ class WideRowBloomFilter(DailyTemporalBase):
         self.columnfamily = ColumnFamily(self.cassandra_session, self.cassandra_columns_family)
 
     def rebuild_from_archive(self):
+        self.initialize_bf()
         for k,v in self.columnfamily.xget(self.bf_name):
-            self.add_rebuild(k)
-
-    def add_rebuild(self, key):
-        super(WideRowBloomFilter, self).add(key)
+            self.bf.add(k)
 
     def add(self, key_string, timestamp=None):
         if not self.ready:
@@ -77,7 +77,7 @@ class WideRowBloomFilter(DailyTemporalBase):
             timestamp = time.time()
 
         self.archive_bf_key(key, timestamp)
-        result = super(WideRowBloomFilter, self).add(key)
+        result = self.bf.add(key)
 
         return result
 
@@ -114,7 +114,7 @@ class WideRowBloomFilter(DailyTemporalBase):
             self.next_cassandra_commit = time.time() + self.commit_period
 
 
-class ShardedWideRowBloomFilter(DailyTemporalBase):
+class ShardedWideRowBloomFilter(BloomFilter):
 
     def __new__(cls, capacity, error_rate, expiration, name, cassandra_session, keyspace):
         return super(ShardedWideRowBloomFilter, cls).__new__(cls, capacity=capacity, error_rate=error_rate)
