@@ -18,10 +18,6 @@ cdef extern from "MurmurHash3.h":
     void MurmurHash3_x86_128(void *key, int len, unsigned long seed, void *out)
     void MurmurHash3_x64_128 (void *key, int len, unsigned long seed, void *out)
 
-cdef extern from "MurmurHash2A.h" nogil:
-    unsigned int MurmurHash2A (void * key, int len, unsigned int seed)
-
-
 cdef class BloomFilter:
 
     cdef unsigned int nbr_slices
@@ -209,8 +205,6 @@ cdef class BloomFilter:
         cdef int val_len = len(value)
         cdef unsigned long a
         cdef unsigned long b
-        #cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
-        #cdef unsigned int b = MurmurHash2A(value, val_len, a)
         cdef unsigned long x
         cdef unsigned long i
         cdef unsigned long byte
@@ -284,8 +278,6 @@ cdef class DailyTemporalBase(BloomFilter):
         cdef int val_len = len(value)
         cdef unsigned long a
         cdef unsigned long b
-        #cdef unsigned int a = MurmurHash2A(value, val_len, 0x9747b28c)
-        #cdef unsigned int b = MurmurHash2A(value, val_len, a)
         cdef unsigned long x
         cdef unsigned long i
         cdef unsigned long byte

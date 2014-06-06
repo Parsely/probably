@@ -4,7 +4,7 @@ import pandas as pd
 import itertools
 
 from bloomfilter_cython import BloomFilter
-#from pybloomfilter import BloomFilter
+from scalable_bloomfilter import ScalableBloomFilter
 
 def test_error_rate(bf, capacity, nbr_experiments):
     # uuid for the poor (faster them uuid.uuid4())

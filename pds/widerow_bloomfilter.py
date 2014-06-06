@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 from collections import defaultdict
-from bloomfilter_cython import BloomFilter, DailyTemporalBase
+from bloomfilter_cython import BloomFilter
 from scalable_bloomfilter import ScalableBloomFilter
 from pycassa import NotFoundException
 from pycassa.pool import ConnectionPool
