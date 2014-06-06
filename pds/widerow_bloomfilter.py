@@ -18,10 +18,10 @@ class PDSError(Exception): pass
 
 
 class WideRowBloomFilter(object):
+    """Simple Scalable Bloom Filter backed by a C* widerow.
 
-    def __new__(cls, capacity, error_rate, expiration, name, cassandra_session, keyspace):
-        return super(WideRowBloomFilter, cls).__new__(cls, capacity=capacity, error_rate=error_rate)
-
+    TODO: Switch to CQL3
+    """
     def __init__(self, capacity, error_rate, expiration, name, cassandra_session, keyspace):
         self.bf_name = name
         self.expiration = expiration
@@ -40,7 +40,6 @@ class WideRowBloomFilter(object):
         self.error_rate = error_rate
         self.bf = None
         self.initialize_bf()
-        self.initialized_at = time.time()
         self.ready = False
 
     @property
@@ -51,6 +50,13 @@ class WideRowBloomFilter(object):
         return self.columnfamily.get_count(self.bf_name)
 
     def initialize_bf(self):
+        """ Initialize the Scalable Bloom Filter with optimal capacity.
+
+        Here we fetch the count of the widerow and add some provisioning. The SBF
+        will scale automatically, but choosing the right capacity at this stage will
+        make sure that the SBF is not fragmented. This way, we can remove the fragmentation
+        of the SBF simply by reinitialize it.
+        """
         self.initial_capacity = max(int(self.current_row_count() * 1.5), self.initial_capacity)
         self.bf = ScalableBloomFilter(self.initial_capacity, self.error_rate)
 
@@ -63,6 +69,7 @@ class WideRowBloomFilter(object):
         self.columnfamily = ColumnFamily(self.cassandra_session, self.cassandra_columns_family)
 
     def rebuild_from_archive(self):
+        """Rebuild the SBF using data in C*."""
         self.initialize_bf()
         for k,v in self.columnfamily.xget(self.bf_name):
             self.bf.add(k)
@@ -106,8 +113,7 @@ class WideRowBloomFilter(object):
         return self.expiration - (int(time.time()) - ts)
 
     def archive_bf_key(self, key, ts):
-        """Store the key in Cassandra.
-        """
+        """Store the key in Cassandra."""
         self.uncommited_keys.append((key, ts))
         if (time.time() > self.next_cassandra_commit or len(self.uncommited_keys) >= self.commit_batch_size):
             ttl = self._get_ttl(ts) ### Here we pick a single ttl for the batch
