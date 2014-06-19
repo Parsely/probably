@@ -1,12 +1,16 @@
 #!/usr/bin/env python
-from ez_setup import use_setuptools
-use_setuptools()
-
-import os
-
 from setuptools import setup, find_packages, Extension
-from distutils.command import build_ext
-import numpy
+from setuptools.command.build_ext import build_ext as _build_ext
+
+
+class build_ext(_build_ext):
+    def finalize_options(self):
+        _build_ext.finalize_options(self)
+        # Prevent numpy from thinking it is still in its setup process:
+        __builtins__.__NUMPY_SETUP__ = False
+        import numpy
+        self.include_dirs.append(numpy.get_include())
+
 
 VERSION = '0.0.1'
 DESCRIPTION = "PDS: Simple Probabilistic Data Structure"
@@ -36,13 +40,13 @@ setup(
     author_email="martin@parse.ly",
     url="https://github.com/Parsely/python-pds",
     license="MIT License",
-    packages=find_packages(exclude=['ez_setup']),
     platforms=['any'],
     zip_safe=False,
+    cmdclass={'build_ext':build_ext},
+    setup_requires=['numpy'],
     install_requires=['numpy', 'cython', 'bitarray', 'smhasher'],
-    ext_modules = [Extension("maintenance", ["pds/maintenance.c"], include_dirs=[numpy.get_include()]),
+    ext_modules = [Extension("maintenance", ["pds/maintenance.c"]),
                    Extension("bloomfilter_cython", ["pds/bloomfilter_cython.c", "pds/MurmurHash2A.c", "pds/MurmurHash3.cpp"]),
 
     ],
 )
-
