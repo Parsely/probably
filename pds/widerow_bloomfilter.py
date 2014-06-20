@@ -22,7 +22,7 @@ class WideRowBloomFilter(object):
 
     TODO: Switch to CQL3
     """
-    def __init__(self, capacity, error_rate, expiration, name, cassandra_session, keyspace):
+    def __init__(self, capacity, error_rate, expiration, name, cassandra_session, keyspace, warm_filter=True):
         self.bf_name = name
         self.expiration = expiration
         self.initialize_period()
@@ -40,7 +40,7 @@ class WideRowBloomFilter(object):
         self.error_rate = error_rate
         self.bf = None
         self.initialize_bf()
-        self.ready = False
+        self.ready = not warm_filter
 
     @property
     def capacity(self):
