@@ -63,7 +63,7 @@ class WideRowBloomFilter(object):
     def ensure_cassandra_cf(self):
         s = SystemManager(self.cassandra_session.server_list[0])
         if self.keyspace not in s.list_keyspaces():
-            s.create_keyspace(self.keyspace, SIMPLE_STRATEGY, {'replication_factor': '1'})
+            s.create_keyspace(self.keyspace, SIMPLE_STRATEGY, {'replication_factor': '2'})
         if self.cassandra_columns_family not in s.get_keyspace_column_families(self.keyspace):
             s.create_column_family(self.keyspace, self.cassandra_columns_family)
         self.columnfamily = ColumnFamily(self.cassandra_session, self.cassandra_columns_family)
