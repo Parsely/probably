@@ -112,13 +112,19 @@ class WideRowBloomFilter(object):
         """
         return self.expiration - (int(time.time()) - ts)
 
+    def commit_bf_keys(self):
+        if not self.uncommited_keys:
+            return
+        ts = self.uncommited_keys[-1][1]
+        ttl = self._get_ttl(ts) ### Here we pick a single ttl for the batch
+        if ttl > 0:
+            batch = {k:'' for k,ts in self.uncommited_keys}
+            self.columnfamily.insert(self.bf_name, batch, ttl=ttl)
+        self.uncommited_keys = []
+        self.next_cassandra_commit = time.time() + self.commit_period
+
     def archive_bf_key(self, key, ts):
         """Store the key in Cassandra."""
         self.uncommited_keys.append((key, ts))
         if (time.time() > self.next_cassandra_commit or len(self.uncommited_keys) >= self.commit_batch_size):
-            ttl = self._get_ttl(ts) ### Here we pick a single ttl for the batch
-            if ttl > 0:
-                batch = {k:'' for k,ts in self.uncommited_keys}
-                self.columnfamily.insert(self.bf_name, batch, ttl=ttl)
-            self.uncommited_keys = []
-            self.next_cassandra_commit = time.time() + self.commit_period
+            self.commit_bf_keys()
