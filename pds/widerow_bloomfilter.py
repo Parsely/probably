@@ -2,6 +2,7 @@ import os
 import datetime as dt
 import math
 import time
+import logging
 
 import numpy as np
 
@@ -13,6 +14,8 @@ from pycassa.pool import ConnectionPool
 from pycassa.system_manager import SystemManager, SIMPLE_STRATEGY
 from pycassa.columnfamily import ColumnFamily
 
+
+log = logging.getLogger(__name__)
 
 class PDSError(Exception): pass
 
@@ -62,6 +65,9 @@ class WideRowBloomFilter(object):
         """
         self.initial_capacity = max(int(self.current_row_count() * 1.5), self.initial_capacity)
         self.bf = ScalableBloomFilter(self.initial_capacity, self.error_rate)
+        log.info("Initialized %s ScalableBloomFilter with initial_capacity=%d "
+                 "error_rate=%.2f", self.bf_name, self.initial_capacity,
+                 self.error_rate)
 
     def ensure_cassandra_cf(self):
         s = SystemManager(self.cassandra_session.server_list[0])
@@ -74,9 +80,13 @@ class WideRowBloomFilter(object):
     def rebuild_from_archive(self):
         """Rebuild the SBF using data in C*."""
         self.initialize_bf()
+        start = time.time()
         for k,v in self.columnfamily.xget(self.bf_name,
                                           buffer_size=self.buffer_size):
             self.bf.add(k)
+        secs = time.time() - start
+        log.info("%s rebuild_from_archive completed in %.2fs.", self.bf_name,
+                 secs)
 
     def add(self, key_string, timestamp=None):
         if not self.ready:
