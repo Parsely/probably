@@ -81,12 +81,14 @@ class WideRowBloomFilter(object):
         """Rebuild the SBF using data in C*."""
         self.initialize_bf()
         start = time.time()
+        log.info("%s.%s rebuild_from_archive starting...",
+                 self.cassandra_columns_family, self.bf_name)
         for k,v in self.columnfamily.xget(self.bf_name,
                                           buffer_size=self.buffer_size):
             self.bf.add(k)
         secs = time.time() - start
-        log.info("%s rebuild_from_archive completed in %.2fs.", self.bf_name,
-                 secs)
+        log.info("%s.%s rebuild_from_archive completed in %.2fs.",
+                 self.cassandra_columns_family, self.bf_name, secs)
 
     def add(self, key_string, timestamp=None):
         if not self.ready:
