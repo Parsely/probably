@@ -22,7 +22,9 @@ class WideRowBloomFilter(object):
 
     TODO: Switch to CQL3
     """
-    def __init__(self, capacity, error_rate, expiration, name, cassandra_session, keyspace, should_warm=True):
+    def __init__(self, capacity, error_rate, expiration, name,
+                 cassandra_session, keyspace, should_warm=True,
+                 buffer_size=5000):
         self.bf_name = name
         self.expiration = expiration
         self.initialize_period()
@@ -35,6 +37,7 @@ class WideRowBloomFilter(object):
         self.commit_period = 5.0
         self.next_cassandra_commit = 0
         self.columnfamily = None
+        self.buffer_size = buffer_size
         self.ensure_cassandra_cf()
         self.initial_capacity = capacity
         self.error_rate = error_rate
@@ -71,7 +74,8 @@ class WideRowBloomFilter(object):
     def rebuild_from_archive(self):
         """Rebuild the SBF using data in C*."""
         self.initialize_bf()
-        for k,v in self.columnfamily.xget(self.bf_name):
+        for k,v in self.columnfamily.xget(self.bf_name,
+                                          buffer_size=self.buffer_size):
             self.bf.add(k)
 
     def add(self, key_string, timestamp=None):
