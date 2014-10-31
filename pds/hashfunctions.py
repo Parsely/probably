@@ -1,4 +1,4 @@
-#from sklearn import utils
+from sklearn import utils
 import smhasher
 
 def generate_hashfunctions(nbr_bits, nbr_slices):
