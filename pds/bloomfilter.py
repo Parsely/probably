@@ -1,7 +1,9 @@
+from __future__ import absolute_import, division, print_function
+
 import bitarray
 import numpy as np
 
-from hashfunctions import generate_hashfunctions
+from .hashfunctions import generate_hashfunctions
 
 class BloomFilter(object):
     """Basic Bloom Filter."""
@@ -57,4 +59,4 @@ if __name__ == "__main__":
         if item in bf:
             false_positive += 1
 
-    print "Error rate (false positive): %s" % str(float(false_positive) / 10000)
+    print("Error rate (false positive): %s" % str(float(false_positive) / 10000))

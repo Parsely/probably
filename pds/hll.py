@@ -1,8 +1,15 @@
-import smhasher
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
+import smhasher
+from six import PY3
+from six.moves import cPickle as pickle
+from six.moves import range
 
-from hashfunctions import get_raw_hashfunctions
+from .hashfunctions import get_raw_hashfunctions
 
+if PY3:
+    long = int
 
 class HyperLogLog(object):
     """ Basic Hyperloglog """
@@ -14,7 +21,7 @@ class HyperLogLog(object):
         self.b = b
         self.m = 1 << b
         self.M = np.zeros(self.m, dtype=np.uint8)
-        self.bitcount_arr = [ 1L << i for i in range(self.precision - b + 1) ]
+        self.bitcount_arr = [ long(1) << i for i in range(self.precision - b + 1) ]
         self.hashes = get_raw_hashfunctions()
 
     @staticmethod
@@ -69,14 +76,14 @@ class HyperLogLog(object):
         if E <= 2.5 * self.m:             # Small range correction
             V = self.m - np.count_nonzero(self.M)
             return int(self.m * np.log(self.m / float(V))) if V > 0 else int(E)
-        elif E <= float(1L << self.precision) / 30.0:  #intermidiate range correction -> No correction
+        elif E <= float(long(1) << self.precision) / 30.0:  #intermidiate range correction -> No correction
             return int(E)
         else:
-            return int(-(1L << self.precision) * np.log(1.0 - E / (1L << self.precision)))
+            return int(-(long(1) << self.precision) * np.log(1.0 - E / (long(1) << self.precision)))
 
 
 if __name__ == "__main__":
     hll = HyperLogLog(0.01)
     for i in range(100000):
         hll.add(str(i))
-    print len(hll)
+    print(len(hll))

@@ -1,11 +1,13 @@
-import sys, os.path
-sys.path.append(os.path.split(os.path.abspath(__file__))[0] + '/..')
+from __future__ import absolute_import, print_function
 
-import unittest
 import csv
-import time
-import random
 import datetime
+import os
+import random
+import sys
+import time
+import unittest
+
 import numpy as np
 
 from pds import CountdownBloomFilter
@@ -92,7 +94,7 @@ class CountdownBloomFilterTests(unittest.TestCase):
             t2 = time.time()
             elapsed = t2 - t1
         experimental_expiration = time.time() - start
-        print experimental_expiration
+        print(experimental_expiration)
         assert (experimental_expiration - self.expiration) < 0.2 # Arbitrary error threshold
 
     def test_expiration(self):
