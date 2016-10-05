@@ -5,6 +5,7 @@ import numpy as np
 from .hashfunctions import generate_hashfunctions
 from .maintenance import maintenance
 
+
 class CountdownBloomFilter(object):
     """ Implementation of a Modified Countdown Bloom Filter. Uses a batched maintenance process instead of a continuous one.
 

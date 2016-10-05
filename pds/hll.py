@@ -1,12 +1,10 @@
 from __future__ import absolute_import, division, print_function
 
-import mmh3
 import numpy as np
+import smhasher
 from six import PY3
 from six.moves import cPickle as pickle
 from six.moves import range
-
-from .hashfunctions import get_raw_hashfunctions
 
 
 if PY3:
@@ -51,9 +49,9 @@ class HyperLogLog(object):
         if uuid:
             # Computing the hash
             try:
-                x = mmh3.hash128(uuid)
+                x = smhasher.murmur3_x64_64(uuid)
             except UnicodeEncodeError:
-                x = mmh3.hash128(uuid.encode('ascii', 'ignore'))
+                x = smhasher.murmur3_x64_64(uuid.encode('ascii', 'ignore'))
             # Finding the register to update by using the first b bits as an index
             j = x & ((1 << self.b) - 1)
             # Remove those b bits
