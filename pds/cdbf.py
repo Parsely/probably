@@ -1,8 +1,10 @@
-import hashlib
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 
-from maintenance import maintenance
-from hashfunctions import generate_hashfunctions
+from .hashfunctions import generate_hashfunctions
+from .maintenance import maintenance
+
 
 class CountdownBloomFilter(object):
     """ Implementation of a Modified Countdown Bloom Filter. Uses a batched maintenance process instead of a continuous one.

@@ -1,15 +1,19 @@
-import os
-import cPickle
-import glob
+from __future__ import absolute_import, division, print_function
+
 import datetime as dt
+import glob
+import math
+import os
 import time
 import zlib
 
 import bitarray
 import numpy as np
+from six.moves import cPickle as pickle
+from six.moves import range
 
-from bloomfilter import BloomFilter
-from hashfunctions import generate_hashfunctions
+from .bloomfilter import BloomFilter
+from .hashfunctions import generate_hashfunctions
 
 
 class DailyTemporalBloomFilter(object):
@@ -138,7 +142,7 @@ class DailyTemporalBloomFilter(object):
 
 
     def _union_bf_from_file(self, filename, current=False):
-        snapshot = cPickle.loads(zlib.decompress(open(filename,'r').read()))
+        snapshot = pickle.loads(zlib.decompress(open(filename,'r').read()))
         if current:
             self.current_day_bitarray = self.current_day_bitarray | snapshot
         else:
@@ -173,7 +177,7 @@ class DailyTemporalBloomFilter(object):
         """
         filename = "%s/%s_%s_%s.dat" % (self.snapshot_path, self.name, self.expiration, self.date)
         with open(filename, 'w') as f:
-            f.write(zlib.compress(cPickle.dumps(self.current_day_bitarray, protocol=cPickle.HIGHEST_PROTOCOL)))
+            f.write(zlib.compress(pickle.dumps(self.current_day_bitarray, protocol=pickle.HIGHEST_PROTOCOL)))
 
     def union_current_day(self, bf):
         """Union only the current_day of an other BF."""
@@ -194,4 +198,4 @@ if __name__ == "__main__":
         if item in bf:
             false_positive += 1
 
-    print "Error rate (false positive): %s" % str(float(false_positive) / 10000)
+    print("Error rate (false positive): %s" % str(float(false_positive) / 10000))

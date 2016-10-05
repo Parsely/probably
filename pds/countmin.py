@@ -1,9 +1,12 @@
+from __future__ import absolute_import, division, print_function
+
+import heapq
 import sys
 import random
-import numpy as np
-import heapq
 
-from hashfunctions import generate_hashfunctions
+import numpy as np
+
+from .hashfunctions import generate_hashfunctions
 
 
 class CountMinSketch(object):
@@ -40,13 +43,13 @@ class CountMinSketch(object):
                 new_pair = [estimate, key]
                 old_pair = heapq.heappushpop(self.heap, new_pair)
                 poped = old_pair[1]
-                if self.top_k.has_key(old_pair[1]):
+                if old_pair[1] in self.top_k:
                     del self.top_k[old_pair[1]]
                     self.top_k[key] = new_pair
         return poped
 
     def get(self, key):
-        value = sys.maxint
+        value = float('inf')
         for row, column in enumerate(self.make_hashes(key)):
             value = min(self.count[row, column], value)
         return value
@@ -66,6 +69,6 @@ if __name__ == "__main__":
 
     t1 = time.time()
     for s in stream:
-        p = cms.update(s,1)
-    print time.time() - t1
+        p = cms.update(s, 1)
+    print(time.time() - t1)
 

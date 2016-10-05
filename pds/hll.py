@@ -1,7 +1,14 @@
-import smhasher
-import numpy as np
+from __future__ import absolute_import, division, print_function
 
-from hashfunctions import get_raw_hashfunctions
+import numpy as np
+import smhasher
+from six import PY3
+from six.moves import cPickle as pickle
+from six.moves import range
+
+
+if PY3:
+    long = int
 
 
 class HyperLogLog(object):
@@ -14,8 +21,7 @@ class HyperLogLog(object):
         self.b = b
         self.m = 1 << b
         self.M = np.zeros(self.m, dtype=np.uint8)
-        self.bitcount_arr = [ 1L << i for i in range(self.precision - b + 1) ]
-        self.hashes = get_raw_hashfunctions()
+        self.bitcount_arr = [long(1) << i for i in range(self.precision - b + 1)]
 
     @staticmethod
     def _get_alpha(b):
@@ -36,47 +42,49 @@ class HyperLogLog(object):
         lsb = 0
         while not (w & arr[lsb]):
             lsb += 1
-        return lsb+1
+        return lsb + 1
 
     def add(self, uuid):
         """ Adds a key to the HyperLogLog """
         if uuid:
             # Computing the hash
             try:
-                x = smhasher.murmur3_x86_64(uuid)
+                x = smhasher.murmur3_x64_64(uuid)
             except UnicodeEncodeError:
-                x = smhasher.murmur3_x86_64(uuid.encode('ascii', 'ignore'))
-            # Finding the register to update by using thef first b bits as an index
+                x = smhasher.murmur3_x64_64(uuid.encode('ascii', 'ignore'))
+            # Finding the register to update by using the first b bits as an index
             j = x & ((1 << self.b) - 1)
             # Remove those b bits
             w = x >> self.b
             # Find the first 0 in the remaining bit pattern
             self.M[j] = max(self.M[j], self._get_rho(w, self.bitcount_arr))
 
-    def __len__(self, M = None):
+    def __len__(self, M=None):
         """ Returns the estimate of the cardinality """
         return self.estimate()
 
     def __or__(self, other_hll):
         """  Perform a union with another HLL object. """
-        other_hll_M = other_hll.M
-        self.M = reduce(lambda x,y: np.maximum(x,y), [self.M,other_hll_M]).astype(np.int16)
+        self.M = reduce(lambda x, y: np.maximum(x, y),
+                        [self.M, other_hll.M]).astype(np.int16)
         return self
 
     def estimate(self):
         """ Returns the estimate of the cardinality """
-        E = self.alpha * float(self.m ** 2) / np.power(2.0, -self.M).sum()
+        E = self.alpha * float(self.m ** 2) / np.power(2.0, - self.M).sum()
         if E <= 2.5 * self.m:             # Small range correction
             V = self.m - np.count_nonzero(self.M)
             return int(self.m * np.log(self.m / float(V))) if V > 0 else int(E)
-        elif E <= float(1L << self.precision) / 30.0:  #intermidiate range correction -> No correction
+        # intermidiate range correction -> No correction
+        elif E <= float(long(1) << self.precision) / 30.0:
             return int(E)
         else:
-            return int(-(1L << self.precision) * np.log(1.0 - E / (1L << self.precision)))
+            return int(-(long(1) << self.precision) *
+                       np.log(1.0 - E / (long(1) << self.precision)))
 
 
 if __name__ == "__main__":
     hll = HyperLogLog(0.01)
     for i in range(100000):
         hll.add(str(i))
-    print len(hll)
+    print(len(hll))

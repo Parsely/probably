@@ -1,4 +1,4 @@
 bitarray
 numpy
-#scikit-learn # You can use scikit-learn 32-bits murmur3 implementation if you already have it installed
--e git+https://github.com/mlaprise/python-smhasher.git#egg=python-smhasher
+six
+smhasher
