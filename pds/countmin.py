@@ -49,7 +49,7 @@ class CountMinSketch(object):
         return poped
 
     def get(self, key):
-        value = sys.maxint
+        value = float('inf')
         for row, column in enumerate(self.make_hashes(key)):
             value = min(self.count[row, column], value)
         return value
@@ -69,6 +69,6 @@ if __name__ == "__main__":
 
     t1 = time.time()
     for s in stream:
-        p = cms.update(s,1)
+        p = cms.update(s, 1)
     print(time.time() - t1)
 
