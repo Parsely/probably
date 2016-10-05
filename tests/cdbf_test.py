@@ -1,14 +1,10 @@
 from __future__ import absolute_import, print_function
 
-import csv
-import datetime
-import os
-import random
-import sys
 import time
 import unittest
 
 import numpy as np
+from six.moves import range
 
 from pds import CountdownBloomFilter
 
@@ -35,7 +31,7 @@ class CountdownBloomFilterTests(unittest.TestCase):
         assert existing == False
         existing = self.bf.add('random_uuid')
         assert existing == True
-        assert (self.bf.cellarray.nonzero()[0] == np.array([1062, 1740, 2840, 5206, 6153, 7334])).all()
+        assert (self.bf.cellarray.nonzero()[0] == np.array([1039, 1376, 3202, 5228, 6295, 7530])).all()
 
     def test_touch(self):
         existing = self.bf.add('random_uuid')
@@ -51,7 +47,7 @@ class CountdownBloomFilterTests(unittest.TestCase):
         assert existing == True
 
         # Check membership right after expiration
-        self.bf.batched_expiration_maintenance(2*self.batch_refresh_period)
+        self.bf.batched_expiration_maintenance(2 * self.batch_refresh_period)
 
         # Touch. This should reset the TTL
         existing = self.bf.add('random_uuid')
@@ -74,8 +70,8 @@ class CountdownBloomFilterTests(unittest.TestCase):
         assert (self.bf.cellarray[nzi] == np.array([255, 255, 255, 255, 255, 255], dtype=np.uint8)).all()
         self.bf.batched_expiration_maintenance(self.batch_refresh_period)
         assert (self.bf.cellarray[nzi] == np.array([250, 250, 250, 250, 250, 250], dtype=np.uint8)).all()
-        self.bf.batched_expiration_maintenance(self.expiration - 2*self.batch_refresh_period)
-        assert (self.bf.cellarray[nzi] == np.array([5, 6, 6, 6, 6, 6], dtype=np.uint8)).all()
+        self.bf.batched_expiration_maintenance(self.expiration - 2 * self.batch_refresh_period)
+        assert (self.bf.cellarray[nzi] == np.array([5, 5, 6, 6, 6, 6], dtype=np.uint8)).all()
         self.bf.batched_expiration_maintenance(self.batch_refresh_period)
         assert (self.bf.cellarray[nzi] == np.array([0, 0, 1, 1, 1, 1], dtype=np.uint8)).all()
 
@@ -95,7 +91,7 @@ class CountdownBloomFilterTests(unittest.TestCase):
             elapsed = t2 - t1
         experimental_expiration = time.time() - start
         print(experimental_expiration)
-        assert (experimental_expiration - self.expiration) < 0.2 # Arbitrary error threshold
+        assert (experimental_expiration - self.expiration) < 0.25 # Arbitrary error threshold
 
     def test_expiration(self):
         existing = self.bf.add('random_uuid')
@@ -119,14 +115,14 @@ class CountdownBloomFilterTests(unittest.TestCase):
             self.bf.add(str(i))
         assert self.bf.count == 500
         self.bf.batched_expiration_maintenance(2.5)
-        for i in range(500,1000):
+        for i in range(500, 1000):
             self.bf.add(str(i))
-        assert self.bf.count == 999
+        assert self.bf.count == 1000
         for i in range(26):
             self.bf.batched_expiration_maintenance(0.1)
-        assert self.bf.count == 496
-        self.assertAlmostEqual(self.bf.estimate_z, 0.306, places=3)
-        self.assertAlmostEqual(float(self.bf.cellarray.nonzero()[0].shape[0]) / self.bf.nbr_bits, 0.306, places=3)
+        assert self.bf.count == 492
+        self.assertAlmostEqual(self.bf.estimate_z, 0.304, places=3)
+        self.assertAlmostEqual(float(self.bf.cellarray.nonzero()[0].shape[0]) / self.bf.nbr_bits, 0.304, places=3)
 
 
 
