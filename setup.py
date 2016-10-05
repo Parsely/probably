@@ -15,8 +15,8 @@ class build_ext(_build_ext):
         self.include_dirs.append(numpy.get_include())
 
 
-VERSION = '0.0.1'
-DESCRIPTION = "PDS: Simple Probabilistic Data Structure"
+VERSION = '1.0.0'
+DESCRIPTION = "PDS: Simple Probabilistic Data Structures"
 LONG_DESCRIPTION = ""
 CLASSIFIERS = ['Intended Audience :: Developers',
                'License :: OSI Approved :: MIT License'
@@ -35,13 +35,13 @@ setup(
     keywords=('data structures', 'bloom filter', 'bloom', 'filter',
               'probabilistic', 'set', 'hyperloglog', 'countmin sketch'),
     author="Parse.ly",
-    author_email="martin@parse.ly",
+    author_email='hello@parsely.com',
     url="https://github.com/Parsely/python-pds",
     license="MIT License",
-    packages=find_packages(exclude=['ez_setup']),
+    packages=find_packages(),
     platforms=['any'],
     zip_safe=False,
-    install_requires=['numpy', 'cython', 'bitarray', 'smhasher'],
+    install_requires=['numpy', 'cython', 'bitarray', 'mmh3'],
     setup_requires=['numpy'],
     cmdclass={'build_ext':build_ext},
     ext_modules=[Extension("maintenance", ["pds/maintenance.c"])],
