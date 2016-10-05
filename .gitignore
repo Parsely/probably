@@ -1,5 +1,6 @@
 *.pyc
 *.so
-pds/build
-pds/dist
-pds.egg-info/
+build
+dist
+*.egg-info/
+.cache
