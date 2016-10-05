@@ -41,7 +41,7 @@ setup(
     packages=find_packages(),
     platforms=['any'],
     zip_safe=False,
-    install_requires=['numpy', 'cython', 'bitarray', 'smhasher'],
+    install_requires=['numpy', 'cython', 'bitarray', 'six', 'smhasher'],
     setup_requires=['numpy'],
     cmdclass={'build_ext': build_ext},
     ext_modules=[Extension("pds.maintenance", ["pds/maintenance.c"])],
