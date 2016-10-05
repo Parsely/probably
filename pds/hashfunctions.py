@@ -6,7 +6,7 @@ from six.moves import range
 def generate_hashfunctions(nbr_bits, nbr_slices):
     """Generate a set of hash functions.
 
-    The core method is a 128-bit murmur3 hash which has a good distribution.
+    The core method is a 64-bit murmur3 hash which has a good distribution.
     Multiple hashes can be generate using the previous hash value as a seed.
     """
     def _make_hashfuncs(key):
