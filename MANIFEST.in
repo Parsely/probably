@@ -1,8 +1,5 @@
-recursive-include casterisk *.py
-recursive-include casterisk *.pyx
-recursive-include casterisk *.h
-recursive-include casterisk *.cpp
-recursive-include casterisk *.c
+recursive-include probably *.py
+recursive-include probably *.pyx
+recursive-include probably *.c
 include *.rst
-include *.md
 include *.txt

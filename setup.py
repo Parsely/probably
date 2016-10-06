@@ -19,7 +19,7 @@ VERSION = '1.0.0'
 DESCRIPTION = "Probably: Simple Probabilistic Data Structures"
 LONG_DESCRIPTION = ""
 CLASSIFIERS = ['Intended Audience :: Developers',
-               'License :: OSI Approved :: MIT License'
+               'License :: OSI Approved :: MIT License',
                'Programming Language :: Python',
                'Operating System :: OS Independent',
                'Topic :: Utilities',
