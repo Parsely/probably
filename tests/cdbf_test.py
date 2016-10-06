@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 from six.moves import range
 
-from pds import CountdownBloomFilter
+from probably import CountdownBloomFilter
 
 
 class CountdownBloomFilterTests(unittest.TestCase):

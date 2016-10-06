@@ -1,5 +1,5 @@
-Probabilistic Data Structures for Realtime Analytics
-----------------------------------------------------
+Probably: Probabilistic Data Structures for Realtime Analytics
+--------------------------------------------------------------
 
 Package containing some useful probabilistic datas structures:
 

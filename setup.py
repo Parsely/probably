@@ -16,7 +16,7 @@ class build_ext(_build_ext):
 
 
 VERSION = '1.0.0'
-DESCRIPTION = "PDS: Simple Probabilistic Data Structures"
+DESCRIPTION = "Probably: Simple Probabilistic Data Structures"
 LONG_DESCRIPTION = ""
 CLASSIFIERS = ['Intended Audience :: Developers',
                'License :: OSI Approved :: MIT License'
@@ -27,7 +27,7 @@ CLASSIFIERS = ['Intended Audience :: Developers',
                'Topic :: Software Development :: Libraries :: Python Modules']
 
 setup(
-    name="pds",
+    name="probably",
     version=VERSION,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
@@ -36,7 +36,7 @@ setup(
               'probabilistic', 'set', 'hyperloglog', 'countmin sketch'),
     author="Parse.ly",
     author_email='hello@parsely.com',
-    url="https://github.com/Parsely/python-pds",
+    url="https://github.com/Parsely/probably",
     license="MIT License",
     packages=find_packages(),
     platforms=['any'],
@@ -44,5 +44,5 @@ setup(
     install_requires=['numpy', 'cython', 'bitarray', 'six', 'smhasher'],
     setup_requires=['numpy'],
     cmdclass={'build_ext': build_ext},
-    ext_modules=[Extension("pds.maintenance", ["pds/maintenance.c"])],
+    ext_modules=[Extension("probably.maintenance", ["probably/maintenance.c"])],
 )
