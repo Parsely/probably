@@ -41,7 +41,7 @@ setup(
     packages=find_packages(),
     platforms=['any'],
     zip_safe=False,
-    install_requires=['numpy', 'cython', 'bitarray', 'six', 'smhasher'],
+    install_requires=['numpy', 'bitarray', 'six', 'smhasher'],
     setup_requires=['numpy'],
     cmdclass={'build_ext': build_ext},
     ext_modules=[Extension("probably.maintenance", ["probably/maintenance.c"])],
