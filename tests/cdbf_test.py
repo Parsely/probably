@@ -27,88 +27,82 @@ class CountdownBloomFilterTests(unittest.TestCase):
         assert self.bf.cellarray.shape == (8148,)
 
     def test_add(self):
-        existing = self.bf.add('random_uuid')
-        assert existing == False
-        existing = self.bf.add('random_uuid')
-        assert existing == True
-        assert (self.bf.cellarray.nonzero()[0] == np.array([1039, 1376, 3202, 5228, 6295, 7530])).all()
+        assert not self.bf.add('random_uuid')
+        assert self.bf.add('random_uuid')
+        np.testing.assert_array_equal(self.bf.cellarray.nonzero()[0],
+                                      np.array([1039, 1376, 3202, 5228, 6295,
+                                                7530]))
 
     def test_touch(self):
-        existing = self.bf.add('random_uuid')
-        assert existing == False
-        existing = self.bf.add('random_uuid')
-        assert existing == True
-        nzi = self.bf.cellarray.nonzero()[0]
+        assert not self.bf.add('random_uuid')
+        assert self.bf.add('random_uuid')
         # Check membership just before expiration
         nbr_step = int(self.expiration / self.batch_refresh_period)
         for i in range(nbr_step - 1):
             self.bf.batched_expiration_maintenance(self.batch_refresh_period)
-        existing = 'random_uuid' in self.bf
-        assert existing == True
+        assert 'random_uuid' in self.bf
 
         # Check membership right after expiration
         self.bf.batched_expiration_maintenance(2 * self.batch_refresh_period)
 
         # Touch. This should reset the TTL
-        existing = self.bf.add('random_uuid')
-        assert existing == False
+        assert not self.bf.add('random_uuid')
 
-        existing = 'random_uuid' in self.bf
-        assert existing == True
-
-
+        assert 'random_uuid' in self.bf
 
     def test_compute_refresh_time(self):
         assert self.bf.compute_refresh_time() == 2.4132205876674775e-06
 
     def test_single_batch_expiration(self):
-        existing = self.bf.add('random_uuid')
-        assert existing == False
-        existing = self.bf.add('random_uuid')
-        assert existing == True
+        assert not self.bf.add('random_uuid')
+        assert self.bf.add('random_uuid')
         nzi = self.bf.cellarray.nonzero()[0]
-        assert (self.bf.cellarray[nzi] == np.array([255, 255, 255, 255, 255, 255], dtype=np.uint8)).all()
+        np.testing.assert_array_equal(self.bf.cellarray[nzi],
+                                      np.array([255, 255, 255, 255, 255, 255],
+                                               dtype=np.uint8))
         self.bf.batched_expiration_maintenance(self.batch_refresh_period)
-        assert (self.bf.cellarray[nzi] == np.array([250, 250, 250, 250, 250, 250], dtype=np.uint8)).all()
-        self.bf.batched_expiration_maintenance(self.expiration - 2 * self.batch_refresh_period)
-        assert (self.bf.cellarray[nzi] == np.array([5, 5, 6, 6, 6, 6], dtype=np.uint8)).all()
+        np.testing.assert_array_equal(self.bf.cellarray[nzi],
+                                      np.array([250, 250, 250, 250, 250, 250],
+                                               dtype=np.uint8))
+        self.bf.batched_expiration_maintenance(self.expiration - 2 *
+                                               self.batch_refresh_period)
+        np.testing.assert_array_equal(self.bf.cellarray[nzi],
+                                      np.array([5, 5, 6, 6, 6, 6],
+                                               dtype=np.uint8))
         self.bf.batched_expiration_maintenance(self.batch_refresh_period)
-        assert (self.bf.cellarray[nzi] == np.array([0, 0, 1, 1, 1, 1], dtype=np.uint8)).all()
+        np.testing.assert_array_equal(self.bf.cellarray[nzi],
+                                      np.array([0, 0, 1, 1, 1, 1],
+                                               dtype=np.uint8))
 
     def test_expiration_realtime(self):
-        existing = self.bf.add('random_uuid')
-        assert existing == False
-        existing = self.bf.add('random_uuid')
-        assert existing == True
+        assert not self.bf.add('random_uuid')
+        uuid_exists = self.bf.add('random_uuid')
+        assert uuid_exists
         elapsed = 0
         start = time.time()
-        while existing:
+        while uuid_exists:
             t1 = time.time()
             if elapsed:
                 self.bf.batched_expiration_maintenance(elapsed)
-            existing = 'random_uuid' in self.bf
+            uuid_exists = 'random_uuid' in self.bf
             t2 = time.time()
             elapsed = t2 - t1
         experimental_expiration = time.time() - start
         print(experimental_expiration)
-        assert (experimental_expiration - self.expiration) < 0.28 # Arbitrary error threshold
+        # See if we finished in roughly the right amount of time
+        assert (experimental_expiration - self.expiration) < 0.28
 
     def test_expiration(self):
-        existing = self.bf.add('random_uuid')
-        assert existing == False
-        existing = self.bf.add('random_uuid')
-        assert existing == True
-        nzi = self.bf.cellarray.nonzero()[0]
+        assert not self.bf.add('random_uuid')
+        assert self.bf.add('random_uuid')
         # Check membership just before expiration
         nbr_step = int(self.expiration / self.batch_refresh_period)
         for i in range(nbr_step - 1):
             self.bf.batched_expiration_maintenance(self.batch_refresh_period)
-        existing = 'random_uuid' in self.bf
-        assert existing == True
+        assert 'random_uuid' in self.bf
         # Check membership right after expiration
         self.bf.batched_expiration_maintenance(self.batch_refresh_period)
-        existing = 'random_uuid' in self.bf
-        assert existing == False
+        assert 'random_uuid' not in self.bf
 
     def test_count_estimate(self):
         for i in range(500):
@@ -122,9 +116,11 @@ class CountdownBloomFilterTests(unittest.TestCase):
             self.bf.batched_expiration_maintenance(0.1)
         assert self.bf.count == 492
         self.assertAlmostEqual(self.bf.estimate_z, 0.304, places=3)
-        self.assertAlmostEqual(float(self.bf.cellarray.nonzero()[0].shape[0]) / self.bf.nbr_bits, 0.304, places=3)
-
+        self.assertAlmostEqual((float(self.bf.cellarray.nonzero()[0].shape[0]) /
+                                self.bf.nbr_bits),
+                               0.304,
+                               places=3)
 
 
 if __name__ == '__main__':
-     unittest.main()
+    unittest.main()
