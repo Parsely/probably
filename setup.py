@@ -15,7 +15,7 @@ class build_ext(_build_ext):
         self.include_dirs.append(numpy.get_include())
 
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 DESCRIPTION = "Probably: Simple Probabilistic Data Structures"
 LONG_DESCRIPTION = ""
 CLASSIFIERS = ['Intended Audience :: Developers',
