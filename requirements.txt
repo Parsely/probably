@@ -1,4 +1,0 @@
-bitarray
-numpy
-six
-mmh3>=2.4
