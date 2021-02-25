@@ -3,9 +3,8 @@
 requires = [
     "setuptools>=38.6.0",
     "wheel",
-    "numpy==1.16.5; python_version=='3.7'",
-    "numpy==1.16.5; python_version=='3.7'",
-    "numpy==1.17.3; python_version=='3.8'",
-    "numpy; python_version>='3.9'",
+    "oldest-supported-numpy",
+    "extension-helpers",
+    "Cython>=0.29.21",
 ]
 build-backend = "setuptools.build_meta"
