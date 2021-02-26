@@ -5,3 +5,4 @@ include *.rst
 include *.txt
 include setup.cfg
 include pyproject.toml
+include LICENSE

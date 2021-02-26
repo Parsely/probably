@@ -5,7 +5,7 @@ import numpy as np
 from Cython.Build import cythonize
 from setuptools import Extension, setup
 
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 
 extensions = [
     Extension(
