@@ -18,6 +18,6 @@ extensions = [
 setup(
     name="probably",
     version=VERSION,
-    setup_requires=["oldest-supported-numpy", "cython"],
+    setup_requires=["numpy", "cython"],
     ext_modules=cythonize(extensions),
 )
