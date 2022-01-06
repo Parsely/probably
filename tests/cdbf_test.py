@@ -90,7 +90,7 @@ class CountdownBloomFilterTests(unittest.TestCase):
         experimental_expiration = time.time() - start
         print(experimental_expiration)
         # See if we finished in roughly the right amount of time
-        assert (experimental_expiration - self.expiration) < 0.28
+        assert (experimental_expiration - self.expiration) < 0.40
 
     def test_expiration(self):
         assert not self.bf.add('random_uuid')
